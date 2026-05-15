@@ -1,0 +1,78 @@
+// Niri configuration for eco-linux
+// https://github.com/YaLTeR/niri
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+    }
+    touchpad {
+        tap true
+        natural-scroll true
+        scroll-factor 0.5
+    }
+}
+
+layout {
+    gap 8
+    default-column-width { proportion 0.5 }
+}
+
+spawn-at-startup "qs" "-c" "noctalia-shell"
+
+binds {
+    Mod+T { spawn "ghostty"; }
+    Mod+Q { close-window; }
+    Mod+E { spawn "nautilus"; }
+    Mod+F { toggle-fullscreen; }
+    Mod+W { switch-layout; }
+
+    Mod+Shift+E { quit; }
+    Mod+Shift+S { spawn "sh" "-c" "grim -g \"$(slurp)\""; }
+
+    Print { spawn "grim"; }
+
+    Mod+Left  { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    Mod+Down  { focus-workspace-down; }
+    Mod+Up    { focus-workspace-up; }
+
+    Mod+H { focus-column-left; }
+    Mod+L { focus-column-right; }
+
+    Mod+Shift+Left  { move-column-left; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+Down  { move-workspace-down; }
+    Mod+Shift+Up    { move-workspace-up; }
+
+    Mod+Period { consume-window-into-column; }
+    Mod+Comma  { expel-window-from-column; }
+
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+
+    Mod+Shift+1 { move-window-to-workspace 1; }
+    Mod+Shift+2 { move-window-to-workspace 2; }
+    Mod+Shift+3 { move-window-to-workspace 3; }
+    Mod+Shift+4 { move-window-to-workspace 4; }
+    Mod+Shift+5 { move-window-to-workspace 5; }
+}
+
+window-rule {
+    match app-id == "pavucontrol"
+    open-floating true
+}
+
+window-rule {
+    match app-id == "org.gnome.Calculator"
+    open-floating true
+}
+
+window-rule {
+    match app-id == "org.gnome.Nautilus"
+    open-floating true
+}
