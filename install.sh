@@ -3,7 +3,7 @@ set -euo pipefail
 
 VERSION="1.0.0"
 CACHE_DIR="/tmp/eco-linux"
-REPO="https://github.com/<your-username>/eco-linux"
+REPO="https://github.com/ecruzolivera/eco-linux"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -29,7 +29,7 @@ if [ ! -f "lib/00-checks.sh" ]; then
     echo "Downloading eco-linux resources..."
     rm -rf "$CACHE_DIR"
     mkdir -p "$CACHE_DIR"
-    curl -fsSL "$REPO/archive/main.tar.gz" | tar -xz -C "$CACHE_DIR" --strip-components=1
+    curl -fsSL "$REPO/archive/refs/heads/master.tar.gz" | tar -xz -C "$CACHE_DIR" --strip-components=1
     touch "$CACHE_DIR/.downloaded"
   fi
   cd "$CACHE_DIR"

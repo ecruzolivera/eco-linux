@@ -26,13 +26,13 @@ Once the install completes, reboot, login as your user, and run eco-linux.
 ## Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<your-username>/eco-linux/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/install.sh | bash
 ```
 
 Or clone and run:
 
 ```bash
-git clone https://github.com/<your-username>/eco-linux.git
+git clone https://github.com/ecruzolivera/eco-linux.git
 cd eco-linux
 sudo bash install.sh
 ```
