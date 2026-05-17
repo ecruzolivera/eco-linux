@@ -18,15 +18,15 @@ sudo bash install.sh
 
 ## What it installs
 
-| Category | Software |
-|----------|----------|
-| **WM / Shell** | niri, Noctalia Shell |
-| **Terminal** | ghostty |
-| **Browsers** | Firefox Developer Edition, Brave |
-| **File managers** | yazi (TUI), nautilus (GUI) |
-| **CLI tools** | gh, glab, neovim |
-| **Media / Gaming** | mpv, steam |
-| **Other** | Bitwarden, LocalSend |
+| Category           | Software                         |
+| ------------------ | -------------------------------- |
+| **WM / Shell**     | niri, Noctalia Shell             |
+| **Terminal**       | ghostty                          |
+| **Browsers**       | Firefox Developer Edition, Brave |
+| **File managers**  | yazi (TUI), nautilus (GUI)       |
+| **CLI tools**      | gh, glab, neovim                 |
+| **Media / Gaming** | mpv, steam                       |
+| **Other**          | Bitwarden, LocalSend             |
 
 ## NVIDIA
 
@@ -45,6 +45,7 @@ Noctalia runs on top of niri as a desktop shell (bar, launcher, notifications, l
 ## Configuration
 
 Your own configs go in:
+
 - `~/.config/ghostty/config` — ghostty (bring your own)
 - `~/.config/nvim/` — neovim (bring your own)
 - `~/.config/niri/config.kdl` — niri (provided)
