@@ -25,7 +25,7 @@ do_checks() {
   info "Target user: $REAL_USER"
   info "Target home: $REAL_HOME"
 
-  if ! ping -c 1 archlinux.org &>/dev/null && ! ping -c 1 google.com &>/dev/null; then
+  if ! ping -c 1 -W 2 archlinux.org &>/dev/null && ! ping -c 1 -W 2 google.com &>/dev/null; then
     error "No internet connection"
   fi
   info "Internet OK"

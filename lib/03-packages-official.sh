@@ -32,10 +32,11 @@ do_official_packages() {
     libayatana-appindicator
     brightnessctl
     playerctl
-    egl-wayland
-    nvidia-dkms
-    nvidia-utils
-    nvidia-settings
+    # Noctalia Shell optional dependencies
+    cliphist
+    wlsunset
+    power-profiles-daemon
+    ddcutil
   )
 
   info "Installing ${#PACKAGES[@]} packages..."

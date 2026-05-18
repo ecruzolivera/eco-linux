@@ -9,17 +9,14 @@ do_nvidia() {
   fi
   info "NVIDIA GPU detected"
 
-  ENV_FILE="/etc/environment"
-  LINES=(
-    "GBM_BACKEND=nvidia-drm"
-    "__GLX_VENDOR_LIBRARY_NAME=nvidia"
-    "LIBVA_DRIVER_NAME=nvidia"
-  )
+  info "Installing NVIDIA drivers..."
+  pacman -S --noconfirm --needed nvidia-dkms nvidia-utils nvidia-settings egl-wayland
 
-  for line in "${LINES[@]}"; do
-    if ! grep -q "^${line%%=*}" "$ENV_FILE" 2>/dev/null; then
-      echo "$line" >>"$ENV_FILE"
+  info "Setting NVIDIA environment variables..."
+  while IFS= read -r line; do
+    if ! grep -q "^${line%%=*}" /etc/environment 2>/dev/null; then
+      echo "$line" >> /etc/environment
     fi
-  done
-  info "NVIDIA environment variables set"
+  done < configs/environment
+  info "NVIDIA configuration complete"
 }
