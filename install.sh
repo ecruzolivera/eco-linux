@@ -25,13 +25,10 @@ echo -e "${CYAN}║        eco-linux v$VERSION Installer   ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
 
 if [ ! -f "lib/00-checks.sh" ]; then
-  if [ ! -f "$CACHE_DIR/.downloaded" ]; then
-    echo "Downloading eco-linux resources..."
-    rm -rf "$CACHE_DIR"
-    mkdir -p "$CACHE_DIR"
-    curl -fsSL "$REPO/archive/refs/heads/master.tar.gz" | tar -xz -C "$CACHE_DIR" --strip-components=1
-    touch "$CACHE_DIR/.downloaded"
-  fi
+  echo "Downloading eco-linux resources..."
+  rm -rf "$CACHE_DIR"
+  mkdir -p "$CACHE_DIR"
+  curl -fsSL "$REPO/archive/refs/heads/master.tar.gz" | tar -xz -C "$CACHE_DIR" --strip-components=1
   cd "$CACHE_DIR"
 fi
 
