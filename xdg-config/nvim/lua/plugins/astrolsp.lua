@@ -47,11 +47,6 @@ return {
             -- language = "auto",
             language = "auto",
             checkFrequency = "save",
-            -- languageToolHttpServerUri = "https://api.languagetoolplus.com",
-            -- languageToolOrg = {
-            --   username = "ecruzolivera@gmail.com",
-            --   apiKey = "pit-OLzc5KT8Svvd",
-            -- },
             additionalRules = {
               motherTongue = "es",
             },
