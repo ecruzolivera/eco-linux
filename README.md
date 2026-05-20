@@ -19,7 +19,7 @@ Quick overview of the `archinstall` options required:
 | **Network configuration**    | Copy ISO network config                                     |
 | **Timezone**                 | Set yours                                                   |
 
-Once the install completes, reboot, login as your user, and run eco-linux.
+Once the installation completes, reboot, login as your user, and run eco-linux.
 
 > **Note:** Disk encryption is recommended but not strictly required for eco-linux. Without encryption, you can skip that step in `archinstall`.
 
