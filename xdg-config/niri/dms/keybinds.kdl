@@ -1,11 +1,11 @@
 binds {
 
-    Mod+RETURN                  hotkey-overlay-title="Open Terminal: Ghostty" { spawn "ghostty"; }
-    Mod+B                       hotkey-overlay-title="Open Browser: Brave" { spawn "brave"; }
-    Mod+E                       hotkey-overlay-title="File Manager: Yazi" { spawn "yazi"; }
 
     Mod+Shift+ESCAPE            hotkey-overlay-title="Hotkey overlay" { show-hotkey-overlay; }
     // Application Launchers
+    Mod+RETURN                  hotkey-overlay-title="Open Terminal: Ghostty" { spawn-sh "ghostty"; }
+    Mod+B                       hotkey-overlay-title="Open Browser: Brave" { spawn "brave"; }
+    Mod+E                       hotkey-overlay-title="File Manager: Yazi" { spawn-sh "ghostty" "-e" "yazi"; }
     Mod+Space                   hotkey-overlay-title="Application Launcher" { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
     Mod+T                       hotkey-overlay-title="Task Manager" { spawn "dms" "ipc" "call" "processlist" "focusOrToggle"; }
     Mod+Comma                   hotkey-overlay-title="Settings" { spawn "dms" "ipc" "call" "settings" "focusOrToggle"; }
@@ -110,7 +110,7 @@ binds {
     // ─── Emergency Escape Key ───
     // Use this when a fullscreen app blocks your keybinds.
     // It disables any active keyboard shortcut inhibitor, restoring control.
-    Mod+ALT+ESCAPE                          allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+    Mod+ALT+ESCAPE                      allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     // ─── Exit / Power ───
     CTRL+ALT+Delete                     { quit; } // Also quits Niri
