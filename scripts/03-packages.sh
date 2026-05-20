@@ -2,6 +2,7 @@ phase "Packages"
 
 PACKAGES=(
   adwaita-cursors
+  alacritty
   bitwarden
   brightnessctl
   cava
