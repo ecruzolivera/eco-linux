@@ -4,25 +4,18 @@
 input {
     keyboard {
         xkb {
-            //If you want to overwrite your keyboard layout,
-            // uncomment the line below and change the layout accordingly.
-            //layout "us" // Use the American keyboard layout
+            layout "us"
+            variant "intl"
+            options "compose:caps"
         }
+        repeat-rate 40
+        repeat-delay 600
         numlock // Enable numlock on startup
     }
-
     touchpad {
         tap // Enable tap-to-click
-        natural-scroll // Enable natural (macOS-style) scrolling
+        // scroll-factor 0.4
     }
-
-    mouse {
-        // If you want to disable Mouse Acceleration,
-        // uncomment the lines below.
-        //accel-profile "flat"
-        //accel-speed 0.0
-    }
-
     focus-follows-mouse // Automatically focus windows under the mouse pointer
     workspace-auto-back-and-forth // Enable workspace back & forth switching
 }

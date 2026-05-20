@@ -1,9 +1,11 @@
 phase "Packages"
 
 PACKAGES=(
+  adwaita-cursors
   bitwarden
   brightnessctl
   cava
+  chezmoi
   cliphist
   cups-pk-helper
   dms-shell-niri
@@ -38,7 +40,9 @@ PACKAGES=(
   wireplumber
   wlsunset
   wtype
+  gnome-keyring
   xdg-desktop-portal
+  xdg-desktop-portal-gnome
   xdg-desktop-portal-gtk
   xwayland-satellite
   yazi

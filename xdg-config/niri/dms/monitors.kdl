@@ -3,7 +3,15 @@
 // You will have to remove "/-" and edit it before it takes effect.
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Outputs
 
-/- output "DP-1" {
-    mode "2560x1440@359.979" // Set resolution and refresh rate
-    scale 1 // No scaling (use 2 for HiDPI)
+// Good compromise for 27" or 32" 4K monitors (but fractional!)
+// output {
+//     scale 1.5
+// }   
+
+output "eDP-1" {
+    scale 1.5
 }
+
+output "HDMI-A-1" {
+    scale 2.0
+}   

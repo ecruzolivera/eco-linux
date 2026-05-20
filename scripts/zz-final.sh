@@ -1,8 +1,5 @@
 phase "Final Setup"
 
-info "Make $REAL_USER owner of $USER_CONFIG ..."
-chown -vR "$REAL_USER":"$REAL_USER" "$USER_CONFIG"
-
 info "Enabling SDDM..."
 systemctl enable sddm
 

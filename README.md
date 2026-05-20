@@ -45,7 +45,7 @@ sudo bash install.sh
 | **Terminal**       | ghostty                          |
 | **Browsers**       | Firefox Developer Edition, Brave |
 | **File managers**  | yazi (TUI), nautilus (GUI)       |
-| **CLI tools**      | gh, glab, neovim                 |
+| **CLI tools**      | gh, glab, neovim, chezmoi        |
 | **Media / Gaming** | mpv, steam                       |
 | **Other**          | Bitwarden, LocalSend             |
 
@@ -65,14 +65,25 @@ Noctalia runs on top of niri as a desktop shell (bar, launcher, notifications, l
 
 ## Configuration
 
-Your own configs go in:
+Personal dotfiles are managed by [chezmoi](https://chezmoi.io) from
+[github.com/ecruzolivera/dotfiles](https://github.com/ecruzolivera/dotfiles).
+The installer bootstraps chezmoi on first run and applies your personal configs
+on top of the eco-linux defaults.
 
-- `~/.config/ghostty/config` — ghostty (bring your own)
-- `~/.config/nvim/` — neovim (bring your own)
-- `~/.config/niri/config.kdl` — niri (provided)
-- `~/.config/yazi/yazi.toml` — yazi (provided)
+Configs owned by eco-linux (base desktop defaults):
+- `~/.config/niri/config.kdl` — niri
 - `~/.config/noctalia/` — noctalia settings (managed via shell UI)
+
+Personal configs managed by chezmoi (bring your own):
+- `~/.config/ghostty/config` — ghostty
+- `~/.config/nvim/` — neovim
+- `~/.config/yazi/` — yazi
+- `~/.config/git/config` — git
+- `~/.config/tmux/tmux.conf` — tmux
+- everything else in `~/.config/`
 
 ## Customization
 
-Edit package lists in `lib/03-packages-official.sh` and `lib/04-packages-aur.sh`. Edit the niri config in `configs/niri/config.kdl`.
+- **Packages**: edit `scripts/packages.sh`
+- **Niri**: edit `xdg-config/niri/cfg/*.kdl`
+- **Personal dotfiles**: edit your [dotfiles repo](https://github.com/ecruzolivera/dotfiles)
