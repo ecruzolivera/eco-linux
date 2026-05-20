@@ -1,0 +1,28 @@
+# Config relating to the Lazygit UI
+gui:
+  # Config relating to colors and styles.
+  # See https://github.com/jesseduffield/lazygit/blob/master/docs/Config.md#color-attributes
+  theme:
+    # Background color of selected line.
+    # See https://github.com/jesseduffield/lazygit/blob/master/docs/Config.md#highlighting-the-selected-line
+    selectedLineBgColor:
+      # - "#61afef"
+      - reverse
+    # Background color of copied commit
+    cherryPickedCommitBgColor:
+      - reverse
+    # Default text color
+    defaultFgColor:
+      - default
+git:
+  # See https://github.com/jesseduffield/lazygit/blob/master/docs/Custom_Pagers.md
+  pagers:
+    - # Value of the --color arg in the git diff command. Some pagers want this to be set to 'always' and some want it set to 'never'
+      colorArg: always
+      # e.g.
+      # diff-so-fancy
+      # delta --dark --paging=never
+      # ydiff -p cat -s --wrap --width={{columnWidth}}
+      pager: diff-so-fancy
+      # e.g. 'difft --color=always'
+      externalDiffCommand: ""

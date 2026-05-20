@@ -1,0 +1,7 @@
+[data]
+email = "ecruzolivera@gmail.com"
+name = "Ernesto Cruz Olivera"
+
+[git]
+autoCommit = true
+autoPush = true

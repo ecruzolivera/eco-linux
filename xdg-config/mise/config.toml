@@ -1,0 +1,8 @@
+[tools]
+go = "latest"
+java = "20"
+node = "22"
+bun = "latest"
+
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
