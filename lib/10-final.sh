@@ -29,12 +29,5 @@ do_final() {
   echo -e "  ${YELLOW}The polkit-agent plugin will be downloaded on first launch.${NC}"
   echo ""
 
-  read -p "  Reboot now? [Y/n]: " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]] || [ -z "$REPLY" ]; then
-    info "Rebooting..."
-    reboot
-  else
-    info "Reboot when ready: sudo systemctl reboot"
-  fi
+  info "Reboot when ready: sudo systemctl reboot"
 }
