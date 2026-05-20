@@ -46,6 +46,7 @@ main() {
   do_yay
   do_official_packages
   do_aur_packages
+  do_zsh
   do_nvidia
   do_niri
   do_noctalia
