@@ -6,6 +6,8 @@ VERSION="1.0.0"
 INSTALLER_DIR="/tmp/eco-linux"
 INSTALLER_SYS_CONFIG_DIR="$INSTALLER_DIR/system-config"
 INSTALLER_XDG_CONFIG_DIR="$INSTALLER_DIR/xdg-config"
+INSTALLER_HOME_ROOT_CONFIG_DIR="$INSTALLER_DIR/home-root-config"
+INSTALLER_LOCAL_BIN_DIR="$INSTALLER_DIR/local-bin"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -32,6 +34,8 @@ info "VERSION: $VERSION"
 info "Installer directory: $INSTALLER_DIR"
 info "Installer system config: $INSTALLER_SYS_CONFIG_DIR"
 info "Installer xdg config: $INSTALLER_XDG_CONFIG_DIR"
+info "Installer home-root config: $INSTALLER_HOME_ROOT_CONFIG_DIR"
+info "Installer local bin: $INSTALLER_LOCAL_BIN_DIR"
 
 echo -e "${CYAN}╔══════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║        eco-linux v$VERSION Installer ║${NC}"

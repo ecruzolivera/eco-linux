@@ -1,10 +1,13 @@
 phase "copy xdg-config-home"
-
 mkdir -p "$USER_CONFIG"
-
 cp -rv "$INSTALLER_XDG_CONFIG_DIR"/. "$USER_CONFIG/"
+info "copy xdg-config-home completed"
 
-info "Make $REAL_USER owner of $USER_CONFIG ..."
-chown -vR "$REAL_USER":"$REAL_USER" "$USER_CONFIG"
+phase "copy home-root-config"
+cp -rv "$INSTALLER_HOME_ROOT_CONFIG_DIR"/. "$REAL_HOME/"
+info "copy home-root-config completed"
 
-info "copy config complete"
+phase "copy local-bin"
+mkdir -p "$REAL_HOME/.local/bin/"
+cp -rv "$INSTALLER_LOCAL_BIN_DIR"/. "$REAL_HOME/.local/bin/"
+info "copy local-bin completed"
