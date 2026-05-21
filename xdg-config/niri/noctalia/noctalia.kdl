@@ -1,7 +1,0 @@
-include "autostart.kdl"
-include "envs.kdl"
-include "input.kdl"
-include "keybinds.kdl"
-include "looknfeel.kdl"
-include "monitors.kdl"
-include "rules.kdl"
