@@ -8,7 +8,6 @@ PACKAGES=(
   bitwarden
   bluetui
   bottom
-  brave-bin
   brightnessctl
   cava
   chezmoi
@@ -58,13 +57,10 @@ PACKAGES=(
   libheif
   libjxl
   libraw
-  limine-snapper-sync
   lldb
-  localsend
   lshw
   luarocks
   matugen
-  megasync-bin
   mise
   mpv
   nano
@@ -74,7 +70,6 @@ PACKAGES=(
   noto-fonts
   noto-fonts-emoji
   obsidian
-  oh-my-zsh-git
   openexr
   openjpeg2
   pipewire
@@ -85,33 +80,32 @@ PACKAGES=(
   qbittorrent
   qt6-multimedia
   qt6ct
-  riskie-bin
-  roll
   satty
   sddm
-  slurp
   steam
   systemd
   tree-sitter-cli
   ttf-firacode-nerd
-  ufw-docker
-  visual-studio-code-bin
   wf-recorder
-  wireplumber
-  wlsunset
-  worktrunk-bin
-  wtype
   xdg-desktop-portal
   xdg-desktop-portal-gnome
   xdg-desktop-portal-gtk
   xwayland-satellite
-  yaru-icon-theme
   yazi
 )
 
 AUR_PKS=(
   brave-bin
+  limine-snapper-sync
   localsend-bin
+  megasync-bin
+  oh-my-zsh-git
+  riskie-bin
+  roll
+  ufw-docker
+  visual-studio-code-bin
+  worktrunk-bin
+  yaru-icon-theme
 )
 
 info "Installing ${#PACKAGES[@]} packages..."
