@@ -1,0 +1,64 @@
+" highlight matched
+set hlsearch
+" case insensitive search
+set ignorecase
+set smartcase
+" search while typing
+set incsearch
+" wrap-around when searching
+set wrapscan
+" show pressed keys in lower right corner
+set showcmd
+" tab -> spaces
+set expandtab
+set tabstop=4
+set shiftwidth=4
+" keep a 5 line buffer for the cursor from top/bottom of window
+set scrolloff=5
+" X11 clipboard
+set clipboard=unnamedplus
+" use ~ with movement
+" set tildeop
+
+" mappings
+nnoremap ; :
+noremap <C-s> :w<CR>
+inoremap <C-s> <ESC>:w<CR>
+" reselect visual block after indent
+vnoremap < <gv
+vnoremap > >gv
+
+" clear highlight
+nnoremap <Space>h :nohls<CR>
+" easy colon
+nnoremap ; :
+" easy save
+nnoremap <C-s> :w<CR>
+inoremap <C-s> <ESC>:w<CR>
+" easy close
+nnoremap <Space>q :q<CR>
+" remove the break line
+nnoremap J mzJ`z
+" keep the cursor centered when page down/up
+nnoremap <C-d> <C-d>zz
+nnoremap <C-u> <C-u>zz
+" keep the cursor centered when searching next/prev
+nnoremap n nzzzv
+nnoremap N Nzzzv
+
+" qt creator
+noremap gd :gotodec<CR>
+noremap gD :gotodef<CR>
+noremap gr :gotorefs<CR>
+noremap <Space>la :actions<CR>
+noremap <Space>lf :formatdoc<CR>
+noremap <Space>lr :rename<CR>
+noremap <Space>ff :findfiles<CR>
+noremap <Space>fw :findadv<CR>
+noremap <Space>r :run<CR>
+noremap <Space>d :debug<CR>
+
+" MOVE LINE/BLOCK
+vnoremap <J> :m'>+<CR>gv=gv
+vnoremap <K> :m-2<CR>gv=gv
+

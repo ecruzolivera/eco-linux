@@ -1,0 +1,60 @@
+Xft.dpi: 192
+! Xft.dpi: 96
+Xcursor.theme: Qogir-dark
+Xcursor.size: 16
+Xft.antialias: true
+Xft.hinting: true
+Xft.rgba: rgb
+Xft.autohint: true
+Xft.hintstyle: hintfull
+Xft.lcdfilter: lcdfilter
+
+
+XTerm*renderFont: true
+XTerm*faceName: xft:FiraCode Nerd Font Mono, \
+                xft:Monospace:style=Medium:size=14   
+XTerm*faceSize: 14
+XTerm*utf8: 2
+XTerm*locale: true
+
+! Every shell is a login shell by default (for inclusion of all necessary environment variables)
+XTerm*loginshell: true
+
+
+! Colores
+*.foreground:   #abb2bf
+*.background:   #1e2127
+*.cursorColor:  #abb2bf
+
+! black
+*.color0:       #282c34
+*.color8:       #393e48
+
+! red
+*.color1:       #e06c75
+*.color9:       #f43753
+
+! green
+*.color2:       #98c379
+*.color10:      #c9d05c
+
+! yellow
+*.color3:       #d19a66
+*.color11:      #e5c07b
+
+! blue
+*.color4:       #61afef
+*.color12:      #b3deef
+
+! magenta
+*.color5:       #be5046
+*.color13:      #d3b987
+
+! cyan
+*.color6:       #56b6c2
+*.color14:      #73cef4
+
+! white
+*.color7:       #eeeeee
+*.color15:      #ffffff
+
