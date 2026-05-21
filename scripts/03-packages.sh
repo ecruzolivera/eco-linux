@@ -3,39 +3,78 @@ phase "Packages"
 PACKAGES=(
   adwaita-cursors
   alacritty
+  atool
+  bat
   bitwarden
+  bluetui
+  bottom
+  brave-bin
   brightnessctl
   cava
   chezmoi
+  chromium
   cliphist
+  cups-pdf
   cups-pk-helper
+  dgop
+  diff-so-fancy
   dms-shell-niri
+  docker-compose
+  eza
+  fastfetch
+  ffmpegthumbnailer
   firefox-developer-edition
+  font-manager
+  fprintd
   fuse2
+  fzf
+  gdb
   ghostty
   ghostty-nautilus
+  gimp
+  git-lfs
   github-cli
   glab
+  gnome-boxes
+  gnome-calculator
+  gnome-characters
+  gnome-disk-utility
   gnome-keyring
+  gnome-themes-extra
+  gparted
   grim
+  hunspell-es_any
   i2c-tools
   imath
+  imv
   iwd
+  just
   jxrlib
   karchive
   kimageformats
+  lazygit
   libavif
   libayatana-appindicator
   libheif
   libjxl
   libraw
+  limine-snapper-sync
+  lldb
+  localsend
+  lshw
+  luarocks
   matugen
+  megasync-bin
+  mise
   mpv
+  nano
   nautilus
   neovim
   networkmanager
   noto-fonts
   noto-fonts-emoji
+  obsidian
+  oh-my-zsh-git
   openexr
   openjpeg2
   pipewire
@@ -43,19 +82,30 @@ PACKAGES=(
   pipewire-pulse
   playerctl
   power-profiles-daemon
+  qbittorrent
   qt6-multimedia
   qt6ct
+  riskie-bin
+  roll
+  satty
+  sddm
   slurp
   steam
   systemd
+  tree-sitter-cli
   ttf-firacode-nerd
+  ufw-docker
+  visual-studio-code-bin
+  wf-recorder
   wireplumber
   wlsunset
+  worktrunk-bin
   wtype
   xdg-desktop-portal
   xdg-desktop-portal-gnome
   xdg-desktop-portal-gtk
   xwayland-satellite
+  yaru-icon-theme
   yazi
 )
 
