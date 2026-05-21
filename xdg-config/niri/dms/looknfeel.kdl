@@ -1,3 +1,12 @@
+
+workspace "1" { }
+workspace "2" { }
+workspace "3" { }
+workspace "4" { }
+workspace "5" { }
+workspace "6" { }
+
+
 layout {
     gaps 5 // Gap between windows
     center-focused-column "never" // Don’t auto-center focused column
@@ -5,7 +14,7 @@ layout {
     background-color "transparent" // <- needed for noctalia-shell to set wallpaper
 
     default-column-width { 
-        proportion 0.66667
+        proportion 1.0
     }
 
     preset-column-widths {
