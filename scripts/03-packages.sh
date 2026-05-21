@@ -105,7 +105,6 @@ AUR_PKS=(
   ufw-docker
   visual-studio-code-bin
   worktrunk-bin
-  yaru-icon-theme
 )
 
 info "Installing ${#PACKAGES[@]} packages..."
