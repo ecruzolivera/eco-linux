@@ -25,6 +25,7 @@ binds {
 
     // ─── Window Movement and Focus ───
     Mod+Q                               { close-window; }
+    Mod+R                               { switch-preset-column-width; }
 
     Mod+H                       { focus-column-or-monitor-left; }
     Mod+J                       { focus-window-or-workspace-down; }
