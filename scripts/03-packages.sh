@@ -16,10 +16,19 @@ PACKAGES=(
   ghostty-nautilus
   github-cli
   glab
+  gnome-keyring
   grim
   i2c-tools
+  imath
   iwd
+  jxrlib
+  karchive
+  kimageformats
+  libavif
   libayatana-appindicator
+  libheif
+  libjxl
+  libraw
   matugen
   mpv
   nautilus
@@ -27,6 +36,8 @@ PACKAGES=(
   networkmanager
   noto-fonts
   noto-fonts-emoji
+  openexr
+  openjpeg2
   pipewire
   pipewire-alsa
   pipewire-pulse
@@ -41,7 +52,6 @@ PACKAGES=(
   wireplumber
   wlsunset
   wtype
-  gnome-keyring
   xdg-desktop-portal
   xdg-desktop-portal-gnome
   xdg-desktop-portal-gtk
