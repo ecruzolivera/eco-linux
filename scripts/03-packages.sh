@@ -102,6 +102,7 @@ AUR_PKS=(
   oh-my-zsh-git
   riskie-bin
   roll
+  ufw-docker
   worktrunk-bin
 )
 
