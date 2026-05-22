@@ -102,8 +102,6 @@ AUR_PKS=(
   oh-my-zsh-git
   riskie-bin
   roll
-  ufw-docker
-  visual-studio-code-bin
   worktrunk-bin
 )
 
