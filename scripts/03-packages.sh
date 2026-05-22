@@ -110,5 +110,12 @@ pacman -S --noconfirm --needed "${PACKAGES[@]}"
 info "Official packages installed"
 
 info "Installing ${#AUR_PKS[@]} packages..."
+info "Granting temporary passwordless pacman for AUR build..."
+echo "$REAL_USER ALL=(ALL) NOPASSWD: /usr/bin/pacman" >/etc/sudoers.d/99-eco-nopasswd
+chmod 0440 /etc/sudoers.d/99-eco-nopasswd
+
 sudo -u "$REAL_USER" yay -S --noconfirm --needed "${AUR_PKS[@]}"
+
+info "Removing temporary passwordless pacman..."
+rm -f /etc/sudoers.d/99-eco-nopasswd
 info "AUR packages installed"
