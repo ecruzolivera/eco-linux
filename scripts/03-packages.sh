@@ -12,18 +12,27 @@ PACKAGES=(
   cava
   chezmoi
   chromium
+  clang
   cliphist
+  cups
+  cups-browsed
+  cups-filters
   cups-pdf
   cups-pk-helper
   dgop
   diff-so-fancy
   dms-shell-niri
   docker-compose
+  dosfstools
+  evince
+  exfatprogs
   eza
   fastfetch
+  fd
   ffmpegthumbnailer
   firefox-developer-edition
   font-manager
+  fontconfig
   fprintd
   fuse2
   fzf
@@ -42,33 +51,53 @@ PACKAGES=(
   gnome-themes-extra
   gparted
   grim
+  gvfs-mtp
+  gvfs-nfs
+  gvfs-smb
   hunspell-es_any
   i2c-tools
+  imagemagick
   imath
+  impala
   imv
+  inetutils
+  inxi
   iwd
+  jq
   just
   jxrlib
   karchive
   kimageformats
   lazygit
+  less
   libavif
   libayatana-appindicator
   libheif
   libjxl
+  libqalculate
   libraw
+  libreoffice-fresh
+  libsecret
+  libyaml
   lldb
+  llvm
   lshw
   luarocks
+  man-db
+  mariadb-libs
   matugen
   mise
   mpv
   nano
   nautilus
+  nautilus-python
   neovim
   networkmanager
   noto-fonts
+  noto-fonts-cjk
   noto-fonts-emoji
+  nss-mdns
+  nvim
   obsidian
   openexr
   openjpeg2
@@ -76,22 +105,46 @@ PACKAGES=(
   pipewire-alsa
   pipewire-pulse
   playerctl
+  postgresql-libs
   power-profiles-daemon
+  python-gobject
+  python-poetry-core
+  python-terminaltexteffects
   qbittorrent
+  qt5-wayland
   qt6-multimedia
   qt6ct
+  ripgrep
+  ruby
   satty
   sddm
+  socat
   steam
+  system-config-printer
   systemd
+  tesseract
+  tesseract-data-eng
+  tldr
+  tmux
   tree-sitter-cli
   ttf-firacode-nerd
+  ttf-ia-writer
+  ttf-jetbrains-mono-nerd
+  tzupdate
+  unzip
   wf-recorder
+  whois
+  wiremix
+  wireplumber
+  wl-clipboard
+  woff2-font-awesome
   xdg-desktop-portal
   xdg-desktop-portal-gnome
   xdg-desktop-portal-gtk
+  xmlstarlet
   xwayland-satellite
   yazi
+  zoxide
 )
 
 AUR_PKS=(
@@ -99,10 +152,8 @@ AUR_PKS=(
   limine-snapper-sync
   localsend-bin
   megasync-bin
-  oh-my-zsh-git
   riskie-bin
   roll
-  ufw-docker
   worktrunk-bin
 )
 
@@ -117,6 +168,4 @@ chmod 0440 /etc/sudoers.d/99-eco-nopasswd
 
 sudo -u "$REAL_USER" yay -S --noconfirm --needed "${AUR_PKS[@]}"
 
-info "Removing temporary passwordless pacman..."
-rm -f /etc/sudoers.d/99-eco-nopasswd
 info "AUR packages installed"
