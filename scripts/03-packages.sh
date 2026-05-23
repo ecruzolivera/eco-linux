@@ -108,8 +108,6 @@ PACKAGES=(
   postgresql-libs
   power-profiles-daemon
   python-gobject
-  python-poetry-core
-  python-terminaltexteffects
   qbittorrent
   qt5-wayland
   qt6-multimedia
@@ -128,9 +126,7 @@ PACKAGES=(
   tmux
   tree-sitter-cli
   ttf-firacode-nerd
-  ttf-ia-writer
   ttf-jetbrains-mono-nerd
-  tzupdate
   unzip
   wf-recorder
   whois
