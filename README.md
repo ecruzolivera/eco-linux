@@ -2,26 +2,9 @@
 
 Arch Linux customization — Niri + Noctalia Shell + your apps.
 
-## Prerequisites: Installing Arch Linux
+## Prerequisites
 
-Before running eco-linux, you need a minimal Arch Linux installation. Follow the [Omarchy manual installation guide](https://learn.omacom.io/2/the-omarchy-manual/96/manual-installation) for detailed steps.
-
-Quick overview of the `archinstall` options required:
-
-| Section                      | Option                                                      |
-| ---------------------------- | ----------------------------------------------------------- |
-| **Mirrors and repositories** | Select your country                                         |
-| **Disk configuration**       | Default partitioning layout, btrfs (compression: yes)       |
-| **Disk encryption**          | LUKS + encryption password + select partition (recommended) |
-| **Bootloader**               | Limine                                                      |
-| **Authentication**           | Set a root password, add a user with Superuser (sudo)       |
-| **Audio**                    | pipewire                                                    |
-| **Network configuration**    | Copy ISO network config                                     |
-| **Timezone**                 | Set yours                                                   |
-
-Once the installation completes, reboot, login as your user, and run eco-linux.
-
-> **Note:** Disk encryption is recommended but not strictly required for eco-linux. Without encryption, you can skip that step in `archinstall`.
+A minimal Arch Linux installation with a non-root sudo user and internet.
 
 ## Usage
 
@@ -39,51 +22,75 @@ sudo bash install.sh
 
 ## What it installs
 
-| Category           | Software                         |
-| ------------------ | -------------------------------- |
-| **WM / Shell**     | niri, Noctalia Shell             |
-| **Terminal**       | ghostty                          |
-| **Browsers**       | Firefox Developer Edition, Brave |
-| **File managers**  | yazi (TUI), nautilus (GUI)       |
-| **CLI tools**      | gh, glab, neovim, chezmoi        |
-| **Media / Gaming** | mpv, steam                       |
-| **Other**          | Bitwarden, LocalSend             |
+| Category         | Software                                                                                                        |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| **WM / Shell**   | niri, Noctalia Shell                                                                                            |
+| **Terminal**     | ghostty, alacritty, tmux, zsh + oh-my-zsh                                                                       |
+| **Browsers**     | Firefox Developer Edition, Brave, Chromium                                                                      |
+| **Editor**       | neovim (full config)                                                                                            |
+| **Dev tools**    | gh, glab, docker (+ buildx, compose), chezmoi, mise, just, mise, clang/llvm, gdb, lldb, git-lfs, ruby, luarocks |
+| **CLI utils**    | bat, eza, fd, fzf, ripgrep, jq, zoxide, tldr, fastfetch, diff-so-fancy, lazygit                                 |
+| **Files**        | yazi, nautilus, gparted, gnome-disk-utility, evince                                                             |
+| **Media**        | mpv, imv, gimp, imagemagick, cava, ffmpegthumbnailer                                                            |
+| **Recording**    | wf-recorder, grim, satty                                                                                        |
+| **Gaming**       | steam, qbittorrent                                                                                              |
+| **Network**      | NetworkManager, iwd, wl-clipboard, wiremix, socat                                                               |
+| **Security**     | UFW (default-deny), systemd-resolved (DNS-over-TLS), gnome-keyring, fprintd                                     |
+| **System**       | SDDM (auto-login), pipewire/wireplumber, power-profiles-daemon, cups, brightnessctl, playerctl, bluetui         |
+| **Fonts**        | Noto (full/CJK/emoji), FiraCode Nerd, JetBrains Mono Nerd, Font Awesome                                         |
+| **Theming**      | adwaita-cursors, gnome-themes-extra, yaru-icon-theme, qt6ct, matugen                                            |
+| **AUR**          | brave-bin, localsend-bin, megasync-bin, riskie-bin, worktrunk-bin, limine-snapper-sync                          |
+| **User scripts** | `eco-screenrecording`, `eco-format-usb`, `eco-delink`, `tmux-sessionizer` (`~/.local/bin/`)                     |
+
+## How it works
+
+The installer sources `scripts/*.sh` in lexicographic order:
+
+```
+00-checks → 01-system → 02-yay → 03-packages → 04-sddm → 05-nvidia → 06-zsh → 07-copy-config → 09-docker → 10-firewall → zz-final
+```
+
+Configs are organized into payload directories:
+
+| Directory           | Copies to              | Contents                                                                                                        |
+| ------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `xdg-config/`       | `~/.config/`           | niri, nvim, ghostty, git, tmux, yazi, bat, bottom, chezmoi, mise, opencode, tmux, yazi, zathura, etc.           |
+| `home-root-config/` | `~/`                   | `.zshrc`, `.profile`, `.bashrc`, `.vimrc`, `.Xresources`, `.zshenv`, `.editorconfig`, `.ideavimrc`, `.xprofile` |
+| `local-bin/`        | `~/.local/bin/`        | `eco-autostart.sh`, `eco-delink.sh`, `eco-format-usb.sh`, `eco-screenrecording.sh`, `tmux-sessionizer`          |
+| `system-config/`    | `/etc/`, `/usr/share/` | NVIDIA env vars, SDDM session/autologin                                                                         |
 
 ## NVIDIA
 
-If an NVIDIA GPU is detected, the script installs `nvidia-dkms`, `nvidia-utils`, `nvidia-settings`, `egl-wayland`, and sets Wayland environment variables in `/etc/environment`.
+If detected: `nvidia-dkms`, `nvidia-utils`, `nvidia-settings`, `egl-wayland` are installed. Environment variables (`GBM_BACKEND`, `__GLX_VENDOR_LIBRARY_NAME`, `LIBVA_DRIVER_NAME`) set in `/etc/environment`. Early KMS via `nvidia_drm modeset=1` and initramfs module loading enabled.
 
 ## Noctalia Shell
 
-Noctalia runs on top of niri as a desktop shell (bar, launcher, notifications, lock screen, OSD). The polkit-agent plugin is pre-configured and auto-installs on first launch.
+Runs on top of niri — bar, launcher, notifications, lock screen, OSD. The polkit-agent plugin auto-installs on first launch.
 
-## Requirements
+## Docker
 
-- Arch Linux (fresh install recommended)
-- `sudo` configured for your user
-- Internet connection
+Socket-activated (starts on demand), log limits (10 MB × 5 files), DNS passthrough via systemd-resolved at `172.17.0.1`, auto-adds user to `docker` group, doesn't block boot without network.
+
+## Firewall
+
+UFW default-deny inbound, default-allow outbound. LocalSend ports opened. Docker firewall bypass prevented via `ufw-docker`.
 
 ## Configuration
 
-Personal dotfiles are managed by [chezmoi](https://chezmoi.io) from
-[github.com/ecruzolivera/dotfiles](https://github.com/ecruzolivera/dotfiles).
-The installer bootstraps chezmoi on first run and applies your personal configs
-on top of the eco-linux defaults.
+Home dotfiles (`.zshrc`, `.profile`, `.bashrc`, `.vimrc`, `Xresources`, etc.) live in `home-root-config/`. XDG configs live in `xdg-config/`. Both are copied by `07-copy-config.sh`.
 
-Configs owned by eco-linux (base desktop defaults):
-- `~/.config/niri/config.kdl` — niri
-- `~/.config/noctalia/` — noctalia settings (managed via shell UI)
-
-Personal configs managed by chezmoi (bring your own):
-- `~/.config/ghostty/config` — ghostty
-- `~/.config/nvim/` — neovim
-- `~/.config/yazi/` — yazi
-- `~/.config/git/config` — git
-- `~/.config/tmux/tmux.conf` — tmux
-- everything else in `~/.config/`
+[chezmoi](https://chezmoi.io) is installed for personal dotfile management — see [github.com/ecruzolivera/dotfiles](https://github.com/ecruzolivera/dotfiles) (configured at `~/.config/chezmoi/chezmoi.toml`).
 
 ## Customization
 
-- **Packages**: edit `scripts/packages.sh`
-- **Niri**: edit `xdg-config/niri/cfg/*.kdl`
-- **Personal dotfiles**: edit your [dotfiles repo](https://github.com/ecruzolivera/dotfiles)
+| Edit              | Location                                         |
+| ----------------- | ------------------------------------------------ |
+| Packages          | `scripts/03-packages.sh`                         |
+| Niri              | `xdg-config/niri/cfg/*.kdl`                      |
+| Home dotfiles     | `home-root-config/`                              |
+| User scripts      | `local-bin/`                                     |
+| Docker setup      | `scripts/09-docker.sh`                           |
+| Firewall rules    | `scripts/10-firewall.sh`                         |
+| System configs    | `system-config/` (NVIDIA, SDDM)                  |
+| XDG configs       | `xdg-config/` (neovim, ghostty, git, tmux, etc.) |
+| Personal dotfiles | chezmoi repo + `~/` dotfiles                     |
