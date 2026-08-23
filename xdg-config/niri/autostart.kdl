@@ -1,0 +1,10 @@
+// ────────────── Startup Applications ──────────────
+// https://github.com/YaLTeR/niri/wiki/Configuration:-Miscellaneous#spawn-sh-at-startup
+// DMS is started via dms.service (systemd user service), not here.
+
+spawn-at-startup "ibus-daemon" "-drx" "--type" "wayland"
+spawn-at-startup  "brave"
+spawn-sh-at-startup  "$TERMINAL"
+spawn-sh-at-startup "sleep 5 && megasync"
+spawn-sh-at-startup "sleep 6 && bitwarden-desktop"
+spawn-sh-at-startup "sleep 8 && slack"

@@ -1,0 +1,9 @@
+{
+  "screenRecorder": {
+    "enabled": true,
+    "recordCursor": false
+  },
+  "recording-indicator": {
+    "enabled": true
+  }
+}

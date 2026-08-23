@@ -1,0 +1,11 @@
+[Unit]
+Description=Limit battery charge to 80%
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'printf "80\n" > /sys/class/power_supply/BAT0/charge_control_end_threshold'
+ExecStart=/bin/sh -c 'printf "75\n" > /sys/class/power_supply/BAT0/charge_control_start_threshold'
+ExecStart=/bin/sh -c 'read end < /sys/class/power_supply/BAT0/charge_control_end_threshold; read start < /sys/class/power_supply/BAT0/charge_control_start_threshold; [ "$end" = 80 ] && [ "$start" = 75 ]'
+
+[Install]
+WantedBy=multi-user.target

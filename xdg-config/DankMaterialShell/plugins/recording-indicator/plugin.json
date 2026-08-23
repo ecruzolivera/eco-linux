@@ -1,0 +1,15 @@
+{
+  "id": "recording-indicator",
+  "name": "Recording Indicator",
+  "description": "Shows an indicator when wf-recorder is recording",
+  "version": "1.0.0",
+  "type": "launcher",
+  "component": "./Service.qml",
+  "capabilities": [
+    "dankbar-widget"
+  ],
+  "permissions": [
+    "process"
+  ],
+  "requires_dms": ">=1.2.0"
+}

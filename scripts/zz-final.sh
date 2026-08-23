@@ -10,6 +10,9 @@ systemctl enable sddm
 info "Enabling PipeWire user services..."
 systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service
 
+info "Enabling DMS shell user service..."
+systemctl --global enable dms.service
+
 info "Adding $REAL_USER to relevant groups..."
 usermod -aG audio,video,input "$REAL_USER" 2>/dev/null || true
 

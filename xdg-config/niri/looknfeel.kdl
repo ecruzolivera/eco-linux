@@ -1,0 +1,90 @@
+layout {
+    default-column-width { 
+        proportion 0.70
+    }
+    preset-column-widths {
+        proportion 0.30
+        proportion 0.5
+        proportion 0.70
+        proportion 1.0
+    }
+    struts {}
+    // By default focus ring and border are rendered as a solid background rectangle
+    // behind windows. That is, they will show up through semitransparent windows.
+    // This is because windows using client-side decorations can have an arbitrary shape.
+    //
+    // If you don't like that, you should uncomment `prefer-no-csd` below.
+    // Niri will draw focus ring and border *around* windows that agree to omit their
+    // client-side decorations.
+    //
+    // Alternatively, you can override it with a window rule called
+    // `draw-border-with-background`.
+    border {
+        width 4
+        active-color   "#707070"      // Neutral gray
+        inactive-color "#d0d0d0"      // Light gray
+        urgent-color   "#cc4444"      // Softer red
+    }
+    shadow {
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#0007"
+    }
+}
+
+// disable client decorations
+prefer-no-csd
+
+animations {
+    off
+}
+
+cursor {
+    xcursor-theme "Adwaita"
+    xcursor-size 24
+    hide-when-typing
+    hide-after-inactive-ms 1000
+}   
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+
+
+
+// This config is in the KDL format: https://kdl.dev
+// "/-" comments out the following node.
+// Check the wiki for a full description of the configuration:
+// https://github.com/YaLTeR/niri/wiki/Configuration:-Introduction
+config-notification {
+    disable-failed
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+// Settings that influence how windows are positioned and sized.
+// Find more information on the wiki:
+// https://github.com/YaLTeR/niri/wiki/Configuration:-Layout
+overview {
+    workspace-shadow {
+        off
+    }
+}
+
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+// Override to disable super+tab
+recent-windows {
+    binds {
+        Alt+Tab         { next-window scope="output"; }
+        Alt+Shift+Tab   { previous-window scope="output"; }
+        Alt+grave       { next-window filter="app-id"; }
+        Alt+Shift+grave { previous-window filter="app-id"; }
+    }
+}

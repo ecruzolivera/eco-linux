@@ -1,0 +1,32 @@
+// ────────────── Output Configuration ──────────────
+
+// You can configure outputs by their name, which you can find
+// by running `niri msg outputs` while inside a niri instance.
+// The built-in laptop monitor is usually called "eDP-1".
+// Find more information on the wiki:
+// https://github.com/YaLTeR/niri/wiki/Configuration:-Outputs
+// Remember to uncomment the node by removing "/-"!
+/-output "eDP-2" {
+    mode "2560x1600@239.998993"
+    position x=2560 y=0
+    variable-refresh-rate
+}
+
+
+// You can run `niri msg outputs` to get the correct name for your displays.
+// You will have to remove "/-" and edit it before it takes effect.
+// https://github.com/YaLTeR/niri/wiki/Configuration:-Outputs
+
+// Good compromise for 27" or 32" 4K monitors (but fractional!)
+// output {
+//     scale 1.5
+// }   
+
+output "eDP-1" {
+    scale 1.5
+}
+
+output "HDMI-A-1" {
+    focus-at-startup
+    scale 2.0
+}   

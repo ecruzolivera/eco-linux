@@ -6,12 +6,5 @@ environment {
     QT_WAYLAND_DISABLE_WINDOWDECORATION "1"
     XDG_CURRENT_DESKTOP "niri"
     XDG_SESSION_TYPE "wayland"
-    env "SSH_AUTH_SOCK,/home/ernesto/.bitwarden-ssh-agent.sock"
+    SSH_AUTH_SOCK "__HOME__/.bitwarden-ssh-agent.sock"
 }
-
-
-debug {
-    // Allows notification actions and window activation from Noctalia.
-    honor-xdg-activation-with-invalid-serial
-}
-

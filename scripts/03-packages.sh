@@ -1,6 +1,12 @@
 phase "Packages"
 
 PACKAGES=(
+  gdu
+  satty
+  pandoc-cli
+  qt6ct
+  qt5ct
+  adw-gtk-theme
   adwaita-cursors
   alacritty
   atool

@@ -1,6 +1,6 @@
 # eco-linux
 
-Arch Linux customization — Niri + Noctalia Shell + your apps.
+Arch Linux customization — Niri + DMS (DankMaterialShell) + your apps.
 
 ## Prerequisites
 
@@ -12,19 +12,11 @@ A minimal Arch Linux installation with a non-root sudo user and internet.
 curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/install.sh | bash
 ```
 
-Or clone and run:
-
-```bash
-git clone https://github.com/ecruzolivera/eco-linux.git
-cd eco-linux
-sudo bash install.sh
-```
-
 ## What it installs
 
 | Category         | Software                                                                                                        |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| **WM / Shell**   | niri, Noctalia Shell                                                                                            |
+| **WM / Shell**   | niri, DMS (DankMaterialShell)                                                                                   |
 | **Terminal**     | ghostty, alacritty, tmux, zsh + oh-my-zsh                                                                       |
 | **Browsers**     | Firefox Developer Edition, Brave, Chromium                                                                      |
 | **Editor**       | neovim (full config)                                                                                            |
@@ -47,25 +39,25 @@ sudo bash install.sh
 The installer sources `scripts/*.sh` in lexicographic order:
 
 ```
-00-checks → 01-system → 02-yay → 03-packages → 04-sddm → 05-nvidia → 06-zsh → 07-copy-config → 09-docker → 10-firewall → zz-final
+00-checks → 01-system → 02-yay → 03-packages → 04-sddm → 05-nvidia → 06-zsh → 07-copy-config → 08-battery → 09-docker → 10-firewall → zz-final
 ```
 
 Configs are organized into payload directories:
 
 | Directory           | Copies to              | Contents                                                                                                        |
 | ------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `xdg-config/`       | `~/.config/`           | niri, nvim, ghostty, git, tmux, yazi, bat, bottom, chezmoi, mise, opencode, tmux, yazi, zathura, etc.           |
+| `xdg-config/`       | `~/.config/`           | niri, DankMaterialShell, nvim, ghostty, git, tmux, yazi, bat, bottom, chezmoi, mise, opencode, zathura, etc.    |
 | `home-root-config/` | `~/`                   | `.zshrc`, `.profile`, `.bashrc`, `.vimrc`, `.Xresources`, `.zshenv`, `.editorconfig`, `.ideavimrc`, `.xprofile` |
 | `local-bin/`        | `~/.local/bin/`        | `eco-autostart.sh`, `eco-delink.sh`, `eco-format-usb.sh`, `eco-screenrecording.sh`, `tmux-sessionizer`          |
-| `system-config/`    | `/etc/`, `/usr/share/` | NVIDIA env vars, SDDM session/autologin                                                                         |
+| `system-config/`    | `/etc/`, `/usr/share/` | NVIDIA env vars, SDDM session/autologin, battery charge limit service                                           |
 
 ## NVIDIA
 
 If detected: `nvidia-dkms`, `nvidia-utils`, `nvidia-settings`, `egl-wayland` are installed. Environment variables (`GBM_BACKEND`, `__GLX_VENDOR_LIBRARY_NAME`, `LIBVA_DRIVER_NAME`) set in `/etc/environment`. Early KMS via `nvidia_drm modeset=1` and initramfs module loading enabled.
 
-## Noctalia Shell
+## DMS (DankMaterialShell)
 
-Runs on top of niri — bar, launcher, notifications, lock screen, OSD. The polkit-agent plugin auto-installs on first launch.
+Runs on top of niri as a systemd user service (`dms.service`) — bar, launcher, notifications, lock screen, OSD. Includes its own polkit agent and idle management (auto-lock / display-off / suspend with separate AC and battery profiles).
 
 ## Docker
 
@@ -86,7 +78,7 @@ Home dotfiles (`.zshrc`, `.profile`, `.bashrc`, `.vimrc`, `Xresources`, etc.) li
 | Edit              | Location                                         |
 | ----------------- | ------------------------------------------------ |
 | Packages          | `scripts/03-packages.sh`                         |
-| Niri              | `xdg-config/niri/cfg/*.kdl`                      |
+| Niri              | `xdg-config/niri/*.kdl`                          |
 | Home dotfiles     | `home-root-config/`                              |
 | User scripts      | `local-bin/`                                     |
 | Docker setup      | `scripts/09-docker.sh`                           |
