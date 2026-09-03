@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
 
-PROJECTS_DIR=~/Work
+# shellcheck source=/home/ernesto/.local/bin/eco-herdr-lib
+source /home/ernesto/.local/bin/eco-herdr-lib
+
+PROJECTS_DIR=$ECO_PROJECTS_DIR
 
 if [[ $# -eq 1 ]]; then
   selected=$1
 else
-  selected=$(find ~/.config $PROJECTS_DIR $PROJECTS_DIR/Forme $PROJECTS_DIR/Forme/wattbike-hub $PROJECTS_DIR/Personal $PROJECTS_DIR/Scratchpad ~/TTRPG ~/ -mindepth 1 -maxdepth 1 -type d | fzf)
+  selected=$({
+    echo "$HOME"
+    find ~/.config $PROJECTS_DIR $PROJECTS_DIR/Forme $PROJECTS_DIR/Forme/wattbike-hub $PROJECTS_DIR/Forme/wattbike-coach $PROJECTS_DIR/Personal $PROJECTS_DIR/Scratchpad ~/TTRPG ~/ -mindepth 1 -maxdepth 1 -type d
+  } | fzf)
 fi
 
 if [[ -z $selected ]]; then
   exit 1
 fi
 
+resolved=$(realpath "$selected")
+ai_cmd=$(eco_agent_for "$resolved")
+
 # Create unique session name with parent directory
-parent_dir=$(basename "$(dirname "$selected")")
-base_dir=$(basename "$selected")
-selected_name=$(echo "${parent_dir}-${base_dir}" | tr . _)
+selected_name=$(eco_workspace_label "$selected")
 
 # Create session with 3 windows if it doesn't exist
 if ! tmux has-session -t="$selected_name" 2>/dev/null; then
@@ -25,8 +32,8 @@ if ! tmux has-session -t="$selected_name" 2>/dev/null; then
   tmux new-window -t "$selected_name:" -n "CLI" -c "$selected"
   # Start nvim in Editor window
   tmux send-keys -t "$selected_name:Editor" "nvim" Enter
-  tmux send-keys -t "$selected_name:AI" "ocp" Enter
-  tmux select-window -t "$selected_name:1"
+  tmux send-keys -t "$selected_name:AI" "$ai_cmd" Enter
+  tmux select-window -t "$selected_name:AI"
 fi
 
 # Attach or switch based on current context

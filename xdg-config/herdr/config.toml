@@ -1,0 +1,73 @@
+onboarding = false
+[keys]
+settings = "prefix+comma"
+workspace_picker = ["prefix+b", "prefix+s"]
+toggle_sidebar = "prefix+shift+b"
+navigate_workspace_up = "k"
+navigate_workspace_down = "j"
+close_workspace = "prefix+d"
+
+[[keys.command]]
+key = "prefix+f"
+type = "popup"
+command = "eco-herdr-sessionizer"
+description = "sessionizer"
+height = "90%"
+width = "90%"
+
+[[keys.command]]
+key = "prefix+w"
+type = "popup"
+command = "eco-wt-switch"
+description = "create worktree (branch name)"
+width = "60%"
+height = "40%"
+
+[[keys.command]]
+key = "prefix+shift+d"
+type = "popup"
+command = "eco-wt-remove"
+description = "remove worktree"
+width = "60%"
+height = "40%"
+
+[theme]
+name = "terminal"
+auto_switch = false
+
+[theme.custom]
+accent = "#d7c6ff"
+text = "#faf8ff"
+subtext0 = "#9d99a5"
+panel_bg = "#141218"
+surface0 = "#141218"
+green = "#a5ffb8"
+red = "#ff9fb2"
+blue = "#d7c6ff"
+mauve = "#d7c6ff"
+teal = "#a5ffb8"
+yellow = "#ffe7a5"
+overlay0 = "#9d99a5"
+peach = "#ff9fb2"
+selection_bg = "#d7c6ff"
+active_row_bg = "#241f2e"
+
+[ui]
+status_indicators = "dots"
+confirm_close = false
+sidebar_start_collapsed = false
+sidebar_collapsed_mode = "compact"
+sidebar_width = 20
+sidebar_max_width = 24
+tab_bar_position = "bottom"
+
+show_agent_labels_on_pane_borders = true
+agent_panel_sort = "priority"
+[ui.toast]
+delivery = "system"
+
+[ui.sidebar.agents]
+rows = [["state_icon", "workspace"], ["state_text", "agent"]]
+
+[ui.sidebar.spaces]
+rows = [["state_icon", "workspace"], ["branch"]]

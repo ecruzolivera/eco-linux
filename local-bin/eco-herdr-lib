@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+# Shared helpers for the eco-herdr / eco-tmux / worktrunk integrations.
+# Single source of truth for agent resolution and workspace-label computation,
+# so herdr workspaces created from different entry points (sessionizer popup,
+# worktrunk post-start hook) always agree on agent and label.
+
+ECO_PROJECTS_DIR=~/Work
+
+# eco_agent_for <path>
+# Echo the agent command to launch for a project directory (existing sessions).
+# Direct children of ~/Work/Forme (repos and their worktree siblings) -> claude --continue,
+# everything else -> opencode --continue.
+eco_agent_for() {
+  local resolved forme_dir target
+  target=${1:?eco_agent_for: missing path}
+  resolved=$(realpath "$target")
+  forme_dir=$(realpath "$ECO_PROJECTS_DIR/Forme")
+  if [[ "$(dirname "$resolved")" == "$forme_dir" ]]; then
+    printf '%s\n' "claude --continue"
+  else
+    printf '%s\n' "opencode --continue"
+  fi
+}
+
+# eco_agent_for_new <path>
+# Echo the agent command to launch for a brand-new project directory (a fresh
+# worktree, where there is no previous session to continue). Same mapping as
+# eco_agent_for but without --continue: Forme -> claude, else -> opencode.
+eco_agent_for_new() {
+  local resolved forme_dir target
+  target=${1:?eco_agent_for_new: missing path}
+  resolved=$(realpath "$target")
+  forme_dir=$(realpath "$ECO_PROJECTS_DIR/Forme")
+  if [[ "$(dirname "$resolved")" == "$forme_dir" ]]; then
+    printf '%s\n' "claude"
+  else
+    printf '%s\n' "opencode"
+  fi
+}
+
+# eco_workspace_label <path>
+# Echo the herdr workspace label for a project directory.
+# Matches the scheme used by eco-herdr-sessionizer: <parent>-<base> with '.' -> '_'.
+eco_workspace_label() {
+  local target parent base
+  target=${1:?eco_workspace_label: missing path}
+  parent=$(basename "$(dirname "$target")")
+  base=$(basename "$target")
+  printf '%s\n' "${parent}-${base}" | tr . _
+}
+
+# eco_workspace_id_by_label <label>
+# Echo the herdr workspace_id matching the given label, or nothing if absent.
+eco_workspace_id_by_label() {
+  local label
+  label=${1:?eco_workspace_id_by_label: missing label}
+  herdr workspace list 2>/dev/null \
+    | jq -r --arg n "$label" '.result.workspaces[]? | select(.label==$n) | .workspace_id' \
+    | head -n1
+}
+
+# eco_create_herdr_workspace <path> [new]
+# Create (or reuse) a standalone 4-tab herdr workspace for a project directory:
+# Editor (nvim) / AI (agent) / Server / CLI, AI tab focused.
+# Echoes the workspace_id. Assumes a herdr server is already running.
+# When the second argument is "new" (a fresh worktree with no prior session),
+# the AI agent is launched fresh (claude/opencode) instead of resumed (claude --continue/opencode --continue).
+eco_create_herdr_workspace() {
+  local target label agent workspace_id created editor_tab editor_pane \
+    ai_created ai_tab ai_pane
+  target=${1:?eco_create_herdr_workspace: missing path}
+  label=$(eco_workspace_label "$target")
+  if [[ ${2:-} == "new" ]]; then
+    agent=$(eco_agent_for_new "$target")
+  else
+    agent=$(eco_agent_for "$target")
+  fi
+
+  workspace_id=$(eco_workspace_id_by_label "$label")
+  if [[ -n $workspace_id ]]; then
+    printf '%s\n' "$workspace_id"
+    return 0
+  fi
+
+  created=$(herdr workspace create --cwd "$target" --label "$label" --no-focus)
+  workspace_id=$(jq -r '.result.workspace.workspace_id' <<<"$created")
+  editor_tab=$(jq -r '.result.tab.tab_id' <<<"$created")
+  editor_pane=$(jq -r '.result.root_pane.pane_id' <<<"$created")
+
+  herdr tab rename "$editor_tab" "Editor"
+  herdr pane run "$editor_pane" "nvim"
+
+  ai_created=$(herdr tab create --workspace "$workspace_id" --cwd "$target" --label "AI")
+  ai_tab=$(jq -r '.result.tab.tab_id' <<<"$ai_created")
+  ai_pane=$(jq -r '.result.root_pane.pane_id' <<<"$ai_created")
+  herdr pane run "$ai_pane" "$agent"
+
+  herdr tab create --workspace "$workspace_id" --cwd "$target" --label "Server"
+  herdr tab create --workspace "$workspace_id" --cwd "$target" --label "CLI"
+  herdr tab focus "$ai_tab"
+
+  printf '%s\n' "$workspace_id"
+}
+
+# eco_close_herdr_workspace <path>
+# Close the herdr workspace for a project directory, if one exists.
+eco_close_herdr_workspace() {
+  local target label workspace_id
+  target=${1:?eco_close_herdr_workspace: missing path}
+  label=$(eco_workspace_label "$target")
+  workspace_id=$(eco_workspace_id_by_label "$label")
+  if [[ -n $workspace_id ]]; then
+    herdr workspace close "$workspace_id" 2>/dev/null
+  fi
+}
+
+# eco_ensure_herdr_server
+# Start a herdr server if one is not already running (cold-start guard).
+eco_ensure_herdr_server() {
+  if ! herdr status --json 2>/dev/null | jq -e '.server.running == true' >/dev/null 2>&1; then
+    nohup herdr server >/dev/null 2>&1 &
+    for _ in $(seq 1 50); do
+      herdr status --json 2>/dev/null | jq -e '.server.running == true' >/dev/null 2>&1 && break
+      sleep 0.2
+    done
+  fi
+}

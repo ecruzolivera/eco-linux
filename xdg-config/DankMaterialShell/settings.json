@@ -579,10 +579,10 @@
           "enabled": true,
           "clockCompactMode": false
         },
-        "weather"
+        "weather",
+        "recordingIndicator"
       ],
       "rightWidgets": [
-        "recording-indicator",
         {
           "id": "systemTray",
           "enabled": true

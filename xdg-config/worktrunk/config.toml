@@ -1,32 +1,21 @@
 [commit.generation]
 command = "opencode run -m opencode-go/minimax-m2.7"
 
-[pre-start]
-tmux = """
-NAME="{{ repo }}--{{ branch | sanitize }}"
-W={{ worktree_path }}
-tmux new-session -d -s "$NAME" -c "$W" -n "Editor"
-tmux new-window -t "$NAME:" -n "AI" -c "$W"
-tmux new-window -t "$NAME:" -n "Server" -c "$W"
-tmux new-window -t "$NAME:" -n "CLI" -c "$W"
-
-# Start nvim in Editor window
-tmux send-keys -t "$NAME:Editor" "nvim" Enter
-tmux send-keys -t "$NAME:AI" "OPENCODE_ENABLE_EXA=1 opencode --port" Enter
-
-# Select Editor window (first window)
-tmux select-window -t "$NAME:1"
-
-tmux switch-client -t "$NAME"
-
-echo "✓ Session '$NAME'"
-"""
+[list]
+json-schema = 2
 
 [post-start]
 copy = "wt step copy-ignored"
+workspace = """
+source /home/ernesto/.local/bin/eco-herdr-lib
+W={{ worktree_path }}
+eco_ensure_herdr_server
+eco_create_herdr_workspace "$W" new
+"""
 
 [pre-remove]
-tmux = """
-NAME="{{ repo }}--{{ branch | sanitize }}"
-tmux kill-session -t $NAME 2>/dev/null || true
+workspace = """
+source /home/ernesto/.local/bin/eco-herdr-lib
+W={{ worktree_path }}
+eco_close_herdr_workspace "$W"
 """

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# Create a Git worktree from herdr (or a shell) via worktrunk.
+# Bound to prefix+w in herdr as a popup: type a branch name, press Enter,
+# and wt switch --create builds the worktree (the worktrunk post-start hook
+# then opens a standalone 4-tab herdr workspace for it).
+# This flow is create-only; switching to existing worktrees stays on prefix+b.
+
+# Resolve the target repo directory. In a herdr popup the active pane id is
+# provided via HERDR_ACTIVE_PANE_ID; its cwd is the repo the user is in.
+resolve_repo() {
+  local pane_cwd
+  if [[ -n ${HERDR_ACTIVE_PANE_ID:-} ]]; then
+    pane_cwd=$(herdr pane get --pane "$HERDR_ACTIVE_PANE_ID" 2>/dev/null \
+      | jq -r '.result.pane.cwd // empty' 2>/dev/null)
+    [[ -n $pane_cwd ]] && printf '%s\n' "$pane_cwd" && return 0
+  fi
+  printf '%s\n' "$PWD"
+}
+
+dir=$(resolve_repo)
+
+top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || {
+  printf 'Not inside a git repository (cwd: %s)\n' "$dir"
+  read -n 1 -r -s -p 'Press any key to close...'
+  exit 1
+}
+cd "$top" || exit 1
+
+printf 'branch: '
+read -r branch
+branch=${branch//[[:space:]]/}
+[[ -z $branch ]] && exit 0
+
+wt switch --create --no-cd "$branch"

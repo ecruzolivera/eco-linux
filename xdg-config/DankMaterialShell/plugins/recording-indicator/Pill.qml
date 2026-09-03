@@ -10,28 +10,30 @@ PluginComponent {
     visibilityCommand: "pgrep -x wf-recorder"
     visibilityInterval: 2
 
+    pillClickAction: () => {
+        Quickshell.execDetached([
+            "sh", "-c", Quickshell.env("HOME") + "/.local/bin/eco-screenrecording.sh"
+        ]);
+    }
+
     horizontalBarPill: Component {
         Item {
-            implicitWidth: pillRow.implicitWidth
-            implicitHeight: pillRow.implicitHeight || 24
+            implicitWidth: dot.width
+            implicitHeight: dot.height
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: Quickshell.execDetached([
-                    "sh", "-c", "~/.local/bin/eco-screenrecording.sh"
-                ])
-            }
-
-            Row {
-                id: pillRow
-                spacing: Theme.spacingS
+            DankIcon {
+                id: dot
                 anchors.centerIn: parent
+                name: "fiber_manual_record"
+                filled: true
+                size: Theme.barIconSize(root.barThickness, -4)
+                color: Theme.error
 
-                DankIcon {
-                    name: "stop_circle"
-                    size: Theme.barIconSize(root.barThickness, -2)
-                    color: Theme.errorText
-                    anchors.verticalCenter: parent.verticalCenter
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite
+                    running: true
+                    NumberAnimation { from: 1.0; to: 0.35; duration: 800; easing.type: Easing.InOutQuad }
+                    NumberAnimation { from: 0.35; to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
                 }
             }
         }
@@ -39,26 +41,22 @@ PluginComponent {
 
     verticalBarPill: Component {
         Item {
-            width: parent.width || 24
-            implicitHeight: pillCol.height
+            implicitWidth: dotV.width
+            implicitHeight: dotV.height
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: Quickshell.execDetached([
-                    "sh", "-c", "~/.local/bin/eco-screenrecording.sh"
-                ])
-            }
+            DankIcon {
+                id: dotV
+                anchors.centerIn: parent
+                name: "fiber_manual_record"
+                filled: true
+                size: Theme.barIconSize(root.barThickness, -4)
+                color: Theme.error
 
-            Column {
-                id: pillCol
-                spacing: Theme.spacingXS
-                anchors.horizontalCenter: parent.horizontalCenter
-
-                DankIcon {
-                    name: "stop_circle"
-                    size: Theme.barIconSize(root.barThickness, -2)
-                    color: Theme.errorText
-                    anchors.horizontalCenter: parent.horizontalCenter
+                SequentialAnimation on opacity {
+                    loops: Animation.Infinite
+                    running: true
+                    NumberAnimation { from: 1.0; to: 0.35; duration: 800; easing.type: Easing.InOutQuad }
+                    NumberAnimation { from: 0.35; to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
                 }
             }
         }

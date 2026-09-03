@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# shellcheck source=/home/ernesto/.local/bin/eco-herdr-lib
+source /home/ernesto/.local/bin/eco-herdr-lib
+
+PROJECTS_DIR=$ECO_PROJECTS_DIR
+
+if [[ $# -eq 1 ]]; then
+  selected=$1
+else
+  selected=$({
+    echo "$HOME"
+    find ~/.config $PROJECTS_DIR $PROJECTS_DIR/Forme $PROJECTS_DIR/Forme/wattbike-hub $PROJECTS_DIR/Forme/wattbike-coach $PROJECTS_DIR/Personal $PROJECTS_DIR/Scratchpad ~/TTRPG ~/ -mindepth 1 -maxdepth 1 -type d
+  } | fzf)
+fi
+
+if [[ -z $selected ]]; then
+  exit 1
+fi
+
+resolved=$(realpath "$selected")
+
+eco_ensure_herdr_server
+
+# Create (or reuse) the standalone 4-tab workspace for the selected directory
+workspace_id=$(eco_create_herdr_workspace "$selected")
+
+# Focus the workspace; attach only when launched outside a herdr client
+herdr workspace focus "$workspace_id"
+if [[ ${HERDR_ENV:-} != 1 && -z ${HERDR_SOCKET_PATH:-} ]]; then
+  herdr
+fi

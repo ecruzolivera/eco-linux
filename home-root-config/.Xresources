@@ -22,39 +22,39 @@ XTerm*loginshell: true
 
 
 ! Colores
-*.foreground:   #abb2bf
-*.background:   #1e2127
-*.cursorColor:  #abb2bf
+*.foreground:   #faf8ff
+*.background:   #141218
+*.cursorColor:  #d7c6ff
 
 ! black
-*.color0:       #282c34
-*.color8:       #393e48
+*.color0:       #141218
+*.color8:       #9d99a5
 
 ! red
-*.color1:       #e06c75
-*.color9:       #f43753
+*.color1:       #ff728f
+*.color9:       #ff9fb2
 
 ! green
-*.color2:       #98c379
-*.color10:      #c9d05c
+*.color2:       #7fff9a
+*.color10:      #a5ffb8
 
 ! yellow
-*.color3:       #d19a66
-*.color11:      #e5c07b
+*.color3:       #ffda72
+*.color11:      #ffe7a5
 
 ! blue
-*.color4:       #61afef
-*.color12:      #b3deef
+*.color4:       #bca5f2
+*.color12:      #d7c6ff
 
 ! magenta
-*.color5:       #be5046
-*.color13:      #d3b987
+*.color5:       #4e3d76
+*.color13:      #ded0ff
 
 ! cyan
-*.color6:       #56b6c2
-*.color14:      #73cef4
+*.color6:       #d0bcff
+*.color14:      #e9e0ff
 
 ! white
-*.color7:       #eeeeee
-*.color15:      #ffffff
+*.color7:       #f4efff
+*.color15:      #faf8ff
 

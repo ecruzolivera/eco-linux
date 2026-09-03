@@ -1,15 +1,12 @@
 {
-  "id": "recording-indicator",
-  "name": "Recording Indicator",
-  "description": "Shows an indicator when wf-recorder is recording",
-  "version": "1.0.0",
-  "type": "launcher",
-  "component": "./Service.qml",
-  "capabilities": [
-    "dankbar-widget"
-  ],
-  "permissions": [
-    "process"
-  ],
-  "requires_dms": ">=1.2.0"
+    "id": "recordingIndicator",
+    "name": "Recording Indicator",
+    "description": "Shows a bar indicator while wf-recorder is recording; click to stop",
+    "version": "1.0.0",
+    "author": "eco-linux",
+    "type": "widget",
+    "component": "./Pill.qml",
+    "capabilities": ["dankbar-widget"],
+    "permissions": ["process"],
+    "requires_dms": ">=1.2.0"
 }
