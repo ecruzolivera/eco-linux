@@ -17,7 +17,7 @@ image/svg+xml=swayimg.desktop
 image/tiff=swayimg.desktop
 image/webp=swayimg.desktop
 image/x-xcf=gimp.desktop
-inode/directory=org.gnome.Nautilus.desktop
+inode/directory=thunar.desktop
 text/english=nvim.desktop
 text/html=brave-browser.desktop
 text/plain=nvim.desktop
@@ -56,6 +56,9 @@ x-scheme-handler/mailto=brave-browser.desktop
 x-scheme-handler/postman=Postman.desktop
 x-scheme-handler/unknown=brave-browser.desktop
 x-scheme-handler/slack=slack.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+x-scheme-handler/claude=com.anthropic.Claude.desktop
+x-scheme-handler/t3code=com.t3tools.T3Code.desktop
 
 [Added Associations]
 image/x-xcf=gimp.desktop;
@@ -69,3 +72,5 @@ application/x-extension-shtml=userapp-brave-browser-Q0SEL3.desktop;
 application/xhtml+xml=userapp-brave-browser-Q0SEL3.desktop;
 application/x-extension-xhtml=userapp-brave-browser-Q0SEL3.desktop;
 application/x-extension-xht=userapp-brave-browser-Q0SEL3.desktop;
+font/ttf=com.github.FontManager.FontViewer.desktop;
+application/zip=xarchiver.desktop;

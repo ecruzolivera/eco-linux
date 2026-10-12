@@ -9,7 +9,7 @@ sort_sensitive = false
 sort_reverse = false
 sort_dir_first = true
 sort_translit = false
-linemode = "size"
+linemode = "size_mtime"
 show_hidden = false
 show_symlink = true
 scrolloff = 5
@@ -63,6 +63,7 @@ download = [
 
 evince = [{ run = 'evince "$@"', orphan = true, for = "linux" }]
 gimp = [{ run = 'gimp "$@"', orphan = true, for = "linux" }]
+brave = [{ run = 'brave "$@"', orphan = true, for = "linux" }]
 
 
 [open]
@@ -76,6 +77,13 @@ rules = [
   # Text
   { mime = "text/*", use = [
     "edit",
+    "brave",
+    "reveal",
+  ] },
+  # Text
+  { mime = "text/html", use = [
+    "edit",
+    "brave",
     "reveal",
   ] },
   # PDF

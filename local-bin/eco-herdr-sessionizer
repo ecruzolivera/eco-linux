@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# shellcheck source=/home/ernesto/.local/bin/eco-herdr-lib
-source /home/ernesto/.local/bin/eco-herdr-lib
+# shellcheck source=eco-herdr-lib
+source "$HOME/.local/bin/eco-herdr-lib"
 
 PROJECTS_DIR=$ECO_PROJECTS_DIR
 
@@ -10,7 +10,7 @@ if [[ $# -eq 1 ]]; then
 else
   selected=$({
     echo "$HOME"
-    find ~/.config $PROJECTS_DIR $PROJECTS_DIR/Forme $PROJECTS_DIR/Forme/wattbike-hub $PROJECTS_DIR/Forme/wattbike-coach $PROJECTS_DIR/Personal $PROJECTS_DIR/Scratchpad ~/TTRPG ~/ -mindepth 1 -maxdepth 1 -type d
+    find ~/.config $PROJECTS_DIR $PROJECTS_DIR/Forme $PROJECTS_DIR/Forme/wattbike-hub $PROJECTS_DIR/Forme/wattbike-coach $PROJECTS_DIR/Personal $PROJECTS_DIR/Scratchpad ~/TTRPG ~/TTRPG/WithoutNumber/WorldsWithoutNumber-Deluxe/ ~/ -mindepth 1 -maxdepth 1 -type d
   } | fzf)
 fi
 

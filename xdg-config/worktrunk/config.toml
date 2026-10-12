@@ -5,17 +5,23 @@ command = "opencode run -m opencode-go/minimax-m2.7"
 json-schema = 2
 
 [post-start]
-copy = "wt step copy-ignored"
+copy = """
+{% if remote_url in ["git@gitlab.com:edde3/mesacontrol.git", "git@gitlab.com:edde3/mesacontrol", "https://gitlab.com/edde3/mesacontrol.git", "https://gitlab.com/edde3/mesacontrol", "ssh://git@gitlab.com/edde3/mesacontrol.git", "ssh://git@gitlab.com/edde3/mesacontrol"] %}
+if [ ! -f .mesa-worktree/cache-ready ]; then wt step copy-ignored; fi
+{% else %}
+wt step copy-ignored
+{% endif %}
+"""
 workspace = """
-source /home/ernesto/.local/bin/eco-herdr-lib
+source "$HOME/.local/bin/eco-herdr-lib"
 W={{ worktree_path }}
 eco_ensure_herdr_server
 eco_create_herdr_workspace "$W" new
 """
 
-[pre-remove]
+[post-remove]
 workspace = """
-source /home/ernesto/.local/bin/eco-herdr-lib
+source "$HOME/.local/bin/eco-herdr-lib"
 W={{ worktree_path }}
 eco_close_herdr_workspace "$W"
 """

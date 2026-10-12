@@ -103,16 +103,49 @@ eco_create_herdr_workspace() {
   printf '%s\n' "$workspace_id"
 }
 
+# eco_workspace_id_by_path <path>
+# Capture the workspace before removal without relying on its display label.
+# Worktrunk renames the directory during removal, so this lookup must run first.
+eco_workspace_id_by_path() {
+  local target panes
+  target=${1:?eco_workspace_id_by_path: missing path}
+  target=$(realpath -m -- "$target") || return 1
+  panes=$(herdr pane list) || return 1
+  jq -r --arg path "$target" '
+    .result.panes
+    | if type != "array" then error("invalid Herdr pane list") else . end
+    | map(select(.cwd == $path) | .workspace_id) | unique
+    | if length > 1 then error("multiple workspaces use this checkout")
+      else .[0] // empty end
+  ' <<<"$panes"
+}
+
 # eco_close_herdr_workspace <path>
-# Close the herdr workspace for a project directory, if one exists.
+# Close the matching workspace after removal; failures remain in the hook log.
 eco_close_herdr_workspace() {
-  local target label workspace_id
+  local target workspace_id workspaces label
   target=${1:?eco_close_herdr_workspace: missing path}
-  label=$(eco_workspace_label "$target")
-  workspace_id=$(eco_workspace_id_by_label "$label")
-  if [[ -n $workspace_id ]]; then
-    herdr workspace close "$workspace_id" 2>/dev/null
+  workspaces=$(herdr workspace list) || return 1
+  jq -e '.result.workspaces | type == "array"' <<<"$workspaces" >/dev/null || return 1
+  if [[ ${ECO_WT_REMOVE_PATH:-} == "$target" && -n ${ECO_WT_REMOVE_WORKSPACE_ID:-} ]]; then
+    workspace_id=$ECO_WT_REMOVE_WORKSPACE_ID
+  else
+    # Direct `wt remove` calls retain the conventional path-derived label.
+    label=$(eco_workspace_label "$target")
+    workspace_id=$(jq -r --arg label "$label" '
+      .result.workspaces
+      | if type != "array" then error("invalid Herdr workspace list") else . end
+      | map(select(.label == $label) | .workspace_id)
+      | if length > 1 then error("ambiguous workspace label") else .[0] // empty end
+    ' <<<"$workspaces") || return 1
   fi
+  if [[ -z $workspace_id ]] || ! jq -e --arg id "$workspace_id" \
+    'any(.result.workspaces[]; .workspace_id == $id)' <<<"$workspaces" >/dev/null; then
+    printf 'Workspace: already closed or none open for %s\n' "$target"
+    return 0
+  fi
+  herdr workspace close "$workspace_id" || return 1
+  printf 'Workspace: closed %s\n' "$workspace_id"
 }
 
 # eco_ensure_herdr_server

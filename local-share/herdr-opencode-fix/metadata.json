@@ -1,0 +1,26 @@
+{
+  "herdrVersion": "0.9.3",
+  "integrationVersion": 13,
+  "opencodeVersion": "2.0.26",
+  "upstream": "https://github.com/herdrdev/herdr/tree/v0.9.3/src/integration/assets/opencode",
+  "upstreamSHA256": "50659d47db3cf4e7de3028e56f2666a656efaaddc24711b72f5b6baa9f99c5d3",
+  "initialBackup": "/home/ernesto/.config/opencode-migration-backups/herdr-fix-20261011-171423",
+  "patchedSHA256": "714c86f02259ad6ab1726faf270609c5630f2b1c997558aa284c1e8ba1cceb27",
+  "patchSHA256": "88156ecfcbc8a2ff26d58c15b79c91a94cde7307f2c0910a3c5da4861d11caff",
+  "verifiedAt": "2026-10-11T23:28:40.396740+00:00",
+  "verification": {
+    "tuiTests": 42,
+    "serverTests": 9,
+    "realSocketTests": 2,
+    "totalTests": 53,
+    "failedTests": 0,
+    "v1LogicUnchanged": true,
+    "serverPluginUnchanged": true,
+    "deploymentSandboxPassed": true,
+    "liveHerdrPane": "blocked: this session is not running inside Herdr; no live pane was controlled",
+    "reproduciblePatchApplyPassed": true
+  },
+  "deployedAt": "2026-10-11T23:29:24.971223+00:00",
+  "deployedPath": "/home/ernesto/.config/opencode/herdr-tui-session.js",
+  "previousPatchedSHA256": "530aa692f6e93ef4cb885746d604c87825a8726e7c1f43702f71e0499bdb0d72"
+}

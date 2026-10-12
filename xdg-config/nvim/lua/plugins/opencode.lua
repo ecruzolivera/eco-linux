@@ -1,4 +1,4 @@
---p-@type LazySpec
+---@type LazySpec
 --
 -- OSC 52 CLIPBOARD ISSUE - Historical Documentation
 -- =================================================
@@ -21,16 +21,24 @@
 -- 3. nvim: Set g:clipboard to use wl-clipboard instead of OSC 52 provider
 --
 -- Current Solution:
--- Use existing opencode session from tmux-sessionizer.
+-- Use existing opencode sessions from the tmux or Herdr sessionizer.
 -- Opencode runs in: tmux → opencode (no nvim terminal layer)
--- Nvim connects to the existing session via opencode.nvim auto-detection.
+-- V2 discovers the shared background service and targets the latest root
+-- session for Neovim's working directory. No --port or embedded terminal.
 --
--- Last Updated: 2026-03-20
--- Status: RESOLVED - Using tmux session instead of embedded terminal
+-- Last Updated: 2026-10-11
+-- Status: RESOLVED - Using external sessions instead of embedded terminals
+-- V1 remote-TUI new-session/scroll mappings are retired: use the OpenCode TUI
+-- (Ctrl+X then N; Ctrl+Alt+U / Ctrl+Alt+D) rather than Neovim command calls.
 --
 return {
   "nickjvandyke/opencode.nvim",
-  version = "*", -- Latest stable release
+  version = false, -- Stable releases target V1; main supports V2
+  branch = "main",
+  init = function()
+    -- Discover the shared service, but never start an embedded terminal.
+    vim.g.opencode_opts = { server = { start = false } }
+  end,
   dependencies = {
     {
       -- `snacks.nvim` integration is recommended, but optional
@@ -41,8 +49,15 @@ return {
         input = {}, -- Enhances `ask()`
         picker = { -- Enhances `select()`
           actions = {
-            opencode_send = function(...)
-              return require("opencode").snacks_picker_send(...)
+            opencode_send = function(picker) ---@param picker snacks.Picker
+              local opencode = require("opencode")
+              local items = vim.tbl_map(function(item)
+                return item.file
+                  and opencode.format({ path = item.file, from = item.pos, to = item.end_pos })
+                  or item.text
+              end, picker:selected({ fallback = true }))
+              picker:close()
+              opencode.ask(table.concat(items, ", ") .. " ")
             end,
           },
           win = {
@@ -67,30 +82,24 @@ return {
 
         -- == Normal Mode Mappings ==
         maps.n[prefix] = { desc = require("astroui").get_icon("OpenCode", 1, true) .. "OpenCode" }
-        -- Note: Toggle mapping removed - opencode runs in tmux session managed separately
+        -- OpenCode runs in an external tmux/Herdr pane, managed separately.
         maps.n[prefix .. "a"] = {
           function()
-            opencode.ask("@this: ", { submit = true })
+            opencode.ask("@this: ")
           end,
           desc = "Ask about this",
         }
         maps.n[prefix .. "+"] = {
           function()
-            opencode.prompt("@buffer", { append = true })
+            opencode.ask("@buffer ")
           end,
-          desc = "Add buffer to prompt",
+          desc = "Ask with buffer context",
         }
         maps.n[prefix .. "e"] = {
           function()
-            opencode.prompt("Explain @this and its context", { submit = true })
+            opencode.prompt("Explain @this and its context")
           end,
           desc = "Explain this code",
-        }
-        maps.n[prefix .. "n"] = {
-          function()
-            opencode.command("session_new")
-          end,
-          desc = "New session",
         }
         maps.n[prefix .. "s"] = {
           function()
@@ -98,32 +107,20 @@ return {
           end,
           desc = "Select prompt",
         }
-        maps.n["<S-C-u>"] = {
-          function()
-            opencode.command("messages_half_page_up")
-          end,
-          desc = "Messages half page up",
-        }
-        maps.n["<S-C-d>"] = {
-          function()
-            opencode.command("messages_half_page_down")
-          end,
-          desc = "Messages half page down",
-        }
 
         -- == Visual Mode Mappings ==
         maps.v[prefix] = { desc = require("astroui").get_icon("OpenCode", 1, true) .. "OpenCode" }
         maps.v[prefix .. "a"] = {
           function()
-            opencode.ask("@this: ", { submit = true })
+            opencode.ask("@this: ")
           end,
           desc = "Ask about selection",
         }
         maps.v[prefix .. "+"] = {
           function()
-            opencode.prompt("@this")
+            opencode.ask("@this ")
           end,
-          desc = "Add selection to prompt",
+          desc = "Ask with selection context",
         }
         maps.v[prefix .. "s"] = {
           function()
@@ -131,9 +128,6 @@ return {
           end,
           desc = "Select prompt",
         }
-
-        -- Use existing opencode session from tmux (auto-detect, no server config needed)
-        vim.g.opencode_opts = {}
       end,
     },
     { "AstroNvim/astroui", opts = { icons = { OpenCode = "" } } },

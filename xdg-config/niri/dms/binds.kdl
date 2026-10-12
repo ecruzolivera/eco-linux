@@ -165,9 +165,9 @@ binds {
     Alt+XF86Launch1 { screenshot-window; }
 
     // Print { screenshot; }
-    Print { spawn "/home/ernesto/.local/bin/eco-screenshot.sh" "region" "edit"; }
-    Ctrl+Print { spawn "/home/ernesto/.local/bin/eco-screenshot.sh" "screen" "edit"; }
-    Alt+Print { spawn "/home/ernesto/.local/bin/eco-screenrecording.sh" "--silent" ; }
+    Print { spawn "__HOME__/.local/bin/eco-screenshot.sh" "region" "edit"; }
+    Ctrl+Print { spawn "__HOME__/.local/bin/eco-screenshot.sh" "screen" "edit"; }
+    Alt+Print { spawn "__HOME__/.local/bin/eco-screenrecording.sh" "--silent" ; }
 
     // === System Controls ===
     Mod+Shift+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }

@@ -75,6 +75,14 @@ return {
       n = {
         -- quick save
         ["<C-s>"] = { ":w!<cr>", desc = "Save File" },
+        ["<Tab>"] = { ">>", desc = "Indent line" },
+        ["<C-i>"] = {
+          function()
+            vim.cmd("normal! <C-i>")
+          end,
+          desc = "Jump forward",
+        },
+        ["<S-Tab>"] = { "<<", desc = "Unindent line" },
         [";"] = { ":", desc = "Easy colon" },
         -- search files
         ["<C-p>"] = {

@@ -4,7 +4,7 @@
 
 A template for getting started with [AstroNvim](https://github.com/AstroNvim/AstroNvim)
 
-## 🛠️ Installation
+## 🛠️ Installations
 
 #### Make a backup of your current nvim and shared folder
 

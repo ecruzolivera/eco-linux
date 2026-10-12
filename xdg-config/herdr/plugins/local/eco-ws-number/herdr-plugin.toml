@@ -1,0 +1,32 @@
+id = "eco.ws-number"
+name = "Workspace Numbers"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "Keep each workspace num token fresh in the sidebar"
+platforms = ["linux"]
+
+[[startup]]
+command = ["__HOME__/.local/bin/eco-ws-number"]
+
+[[events]]
+on = "workspace.created"
+command = ["__HOME__/.local/bin/eco-ws-number"]
+
+[[events]]
+on = "workspace.closed"
+command = ["__HOME__/.local/bin/eco-ws-number"]
+
+[[events]]
+on = "workspace.moved"
+command = ["__HOME__/.local/bin/eco-ws-number"]
+
+[[events]]
+on = "workspace.reordered"
+command = ["__HOME__/.local/bin/eco-ws-number"]
+
+[[actions]]
+id = "sync"
+title = "Refresh workspace numbers"
+contexts = ["global"]
+description = "Report missing or stale num tokens for all open workspaces"
+command = ["__HOME__/.local/bin/eco-ws-number"]

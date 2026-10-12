@@ -1,8 +1,8 @@
 ---
+subagent: true
 description: git commit and push
-subtask: true
 agent: build
-model: opencode-go/deepseek-v4-flash
+model: openai/gpt-6-luna
 ---
 
 # Commit Command
@@ -14,7 +14,9 @@ You are an AI agent that helps create well-formatted git commits with convention
 When the user runs this command, execute the following workflow:
 
 1. **Check command mode**:
-   - If user provides $ARGUMENTS (a simple message), skip to step 3
+   - If user provides $ARGUMENTS that is a complete conventional commit message (e.g., `feat: add login`, `fix: resolve null pointer`), use it directly and skip to step 3
+   - If user provides $ARGUMENTS that is not a complete message, treat it as instructions/context for the commit (e.g., `add "TICKET-123" in the commit message`, `use refactor type`, `these changes are about the auth module`) and continue through the full workflow
+   - If no $ARGUMENTS, continue through the full workflow
 
 2. **Run pre-commit validation**:
    - Execute the linting script like `npm run lint` or equivalent in the project and report any issues
@@ -31,6 +33,7 @@ When the user runs this command, execute the following workflow:
 5. **Generate commit message**:
    - Create message following format: `<type>: <description>`
    - Keep description concise, clear, and in imperative mood
+   - Incorporate any instructions/context from $ARGUMENTS: include ticket IDs (e.g., `feat: add button (TICKET-123)`), respect requested type, reflect described scope, etc.
    - Show the proposed message to user for confirmation
 6. **Execute the commit**:
    - Run `git commit -m "<generated message>"`
@@ -76,6 +79,16 @@ Use these as examples when generating commit messages:
 - feat: implement analytics tracking for user engagement
 - fix: strengthen authentication password requirements
 - feat: improve form accessibility for screen readers
+
+## Reference: Argument Examples
+
+You can pass $ARGUMENTS to this command as either a full commit message or instructions:
+
+- `/commit` — full workflow, auto-generate message
+- `/commit feat: add user authentication system` — use this exact message
+- `/commit add "TICKET-123" in the commit message` — include the ticket ID
+- `/commit use refactor type` — force the type to refactor
+- `/commit these changes are about fixing the auth token refresh` — guide the description
 
 Example commit sequence:
 

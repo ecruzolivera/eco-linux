@@ -18,6 +18,39 @@ set zoom-min 10
 set render-loading "false"
 set scroll-step 50
 
+# --- Keybindings matched to swayimg ---
+
+# Fullscreen
 unmap f
 map f toggle_fullscreen
 map [fullscreen] f toggle_fullscreen
+
+# Fit width
+map w adjust_window width
+
+# Fit page
+map z adjust_window best-fit
+
+# Rotate
+map [ rotate rotate-ccw
+map ] rotate rotate-cw
+
+# Reload (overrides default rotate)
+unmap r
+map r reload
+
+# Info overlay -> toggle statusbar
+map i toggle_statusbar
+
+# Index: Tab toggles index
+map [index] q toggle_index
+map [index] Escape toggle_index
+map [index] Tab toggle_index
+
+# zoom
+map 0 zoom specific 1
+
+unmap =
+map = zoom in 
+unmap -
+map - zoom out 

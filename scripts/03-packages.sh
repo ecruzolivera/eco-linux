@@ -74,12 +74,14 @@ PACKAGES=(
   jxrlib
   karchive
   kimageformats
+  kitty
   lazygit
   less
   libavif
   libayatana-appindicator
   libheif
   libjxl
+  libnotify
   libqalculate
   libraw
   libreoffice-fresh
@@ -113,6 +115,8 @@ PACKAGES=(
   playerctl
   postgresql-libs
   power-profiles-daemon
+  procps-ng
+  python
   python-gobject
   qbittorrent
   qt5-wayland
@@ -123,6 +127,7 @@ PACKAGES=(
   satty
   sddm
   socat
+  slurp
   steam
   system-config-printer
   systemd
@@ -134,6 +139,7 @@ PACKAGES=(
   ttf-firacode-nerd
   ttf-jetbrains-mono-nerd
   unzip
+  util-linux
   wf-recorder
   whois
   wiremix
@@ -151,9 +157,11 @@ PACKAGES=(
 
 AUR_PKS=(
   brave-bin
+  herdr-bin
   limine-snapper-sync
   localsend-bin
   megasync-bin
+  opencode-beta
   riskie-bin
   roll
   worktrunk-bin

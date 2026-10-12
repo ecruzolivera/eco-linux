@@ -92,5 +92,10 @@ window-rule {
     match app-id=r#"com.danklinux.dms$"#
     open-floating true
 }
+// Web app menu (Mod+W) floating
+window-rule {
+    match app-id="webapp-menu"
+    open-floating true
+}
 
 

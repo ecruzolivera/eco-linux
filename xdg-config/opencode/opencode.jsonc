@@ -1,0 +1,140 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "update": "disable",
+  "model": "opencode/big-pickle",
+  "default_agent": "plan",
+  "agents": {
+    "plan": {
+      "color": "#d7c6ff",
+    },
+    "build": {
+      "color": "#ff6b6b",
+    },
+  },
+  "mcp": {
+    "servers": {
+      "chrome-devtools": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "chrome-devtools-mcp@latest",
+          "--autoConnect"
+        ],
+        "disabled": false,
+      },
+    },
+  },
+  "permissions": [
+    // Rule order matters: the last matching pattern wins, and this config is
+    // appended after the built-in defaults, so a bare "*" would override them.
+    {
+      "action": "read",
+      "resource": "*",
+      "effect": "allow",
+    },
+    // Re-declared on purpose: preserves opencode's built-in .env protection.
+    {
+      "action": "read",
+      "resource": "*.env",
+      "effect": "ask",
+    },
+    {
+      "action": "read",
+      "resource": "*.env.*",
+      "effect": "ask",
+    },
+    {
+      "action": "read",
+      "resource": "*.env.example",
+      "effect": "allow",
+    },
+    {
+      "action": "read",
+      "resource": "*.ssh",
+      "effect": "deny",
+    },
+    {
+      "action": "read",
+      "resource": "*.ssh/*",
+      "effect": "deny",
+    },
+    {
+      "action": "external_directory",
+      "resource": "*",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "/tmp",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "/tmp/*",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "/private/tmp",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "/private/tmp/*",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "env:$TMPDIR",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "env:$TMPDIR/*",
+      "effect": "allow",
+    },
+    {
+      "action": "external_directory",
+      "resource": "*.ssh",
+      "effect": "deny",
+    },
+    {
+      "action": "external_directory",
+      "resource": "*.ssh/*",
+      "effect": "deny",
+    },
+    {
+      "action": "shell",
+      "resource": "sudo *",
+      "effect": "deny",
+    },
+    {
+      "action": "shell",
+      "resource": "*~/.ssh*",
+      "effect": "deny",
+    },
+    {
+      "action": "shell",
+      "resource": "*/.ssh/*",
+      "effect": "deny",
+    },
+    {
+      "action": "websearch",
+      "resource": "*",
+      "effect": "allow",
+    },
+  ],
+  // OpenCode Quota: tuiCommandDisplay chooses whether native TUI command output appears in the session transcript or a local popup dialog.
+  // OpenCode Quota: loads the server plugin for slash commands and quota checks.
+  "plugins": [
+    "@slkiser/opencode-quota@latest",
+    // "@mohak34/opencode-notifier@latest"
+  ],
+  "providers": {
+    // Detected openai authentication; opencode-quota added this global provider declaration.
+    "openai": {},
+    // Detected opencode-go authentication; opencode-quota added this global provider declaration.
+    "opencode-go": {},
+  },
+}

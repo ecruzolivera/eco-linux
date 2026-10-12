@@ -260,6 +260,16 @@ keymap = [
     "r",
     "c",
   ], run = "cd ~/TTRPG/OSR/Cairn", desc = "Go to the Cairn directory" },
+  { on = [
+    "g",
+    "r",
+    "l",
+  ], run = "cd ~/TTRPG/La Sombra del Calabozo", desc = "Go to the La Sombra del Calabozo directory" },
+  { on = [
+    "g",
+    "r",
+    "n",
+  ], run = "cd ~/TTRPG/Notas/", desc = "Go to the TTRPG Notas directory" },
 
   { on = [
     "g",
@@ -552,6 +562,88 @@ keymap = [
   { on = "f", run = "filter", desc = "Filter help items" },
 ]
 
+# Sorting (persist per directory via pref-by-location)
+[[mgr.prepend_keymap]]
+on = [",", "m"]
+run = ["sort mtime --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort by modified time"
+
+[[mgr.prepend_keymap]]
+on = [",", "M"]
+run = ["sort mtime --reverse", "plugin pref-by-location -- save"]
+desc = "Sort by modified time (reverse)"
+
+[[mgr.prepend_keymap]]
+on = [",", "b"]
+run = ["sort btime --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort by birth time"
+
+[[mgr.prepend_keymap]]
+on = [",", "B"]
+run = ["sort btime --reverse", "plugin pref-by-location -- save"]
+desc = "Sort by birth time (reverse)"
+
+[[mgr.prepend_keymap]]
+on = [",", "e"]
+run = ["sort extension --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort by extension"
+
+[[mgr.prepend_keymap]]
+on = [",", "E"]
+run = ["sort extension --reverse", "plugin pref-by-location -- save"]
+desc = "Sort by extension (reverse)"
+
+[[mgr.prepend_keymap]]
+on = [",", "a"]
+run = ["sort alphabetical --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort alphabetically"
+
+[[mgr.prepend_keymap]]
+on = [",", "A"]
+run = ["sort alphabetical --reverse", "plugin pref-by-location -- save"]
+desc = "Sort alphabetically (reverse)"
+
+[[mgr.prepend_keymap]]
+on = [",", "n"]
+run = ["sort natural --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort naturally"
+
+[[mgr.prepend_keymap]]
+on = [",", "N"]
+run = ["sort natural --reverse", "plugin pref-by-location -- save"]
+desc = "Sort naturally (reverse)"
+
+[[mgr.prepend_keymap]]
+on = [",", "s"]
+run = ["sort size --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort by size"
+
+[[mgr.prepend_keymap]]
+on = [",", "S"]
+run = ["sort size --reverse", "plugin pref-by-location -- save"]
+desc = "Sort by size (reverse)"
+
+[[mgr.prepend_keymap]]
+on = [",", "r"]
+run = ["sort random --reverse=no", "plugin pref-by-location -- save"]
+desc = "Sort randomly"
+
+[[mgr.prepend_keymap]]
+on = ["m", "c"]
+run = ["linemode size_mtime", "plugin pref-by-location -- save"]
+desc = "Linemode: size+mtime"
+
+[[mgr.prepend_keymap]]
+on = [",", "R"]
+run = ["plugin pref-by-location -- reset"]
+desc = "Reset sort preference of cwd"
+
+# Hidden (saved per directory)
+[[mgr.prepend_keymap]]
+on = "."
+run = ["hidden toggle", "plugin pref-by-location -- save"]
+desc = "Toggle hidden files (saved per directory)"
+
 [[mgr.prepend_keymap]]
 on = ["c", "a", "a"]
 run = "plugin compress"
@@ -586,3 +678,8 @@ desc = "Enter the child directory, or open the file"
 on = "?"
 run = "help"
 desc = "Open help menu"
+
+[[mgr.prepend_keymap]]
+on = "T"
+run = "plugin open-terminal"
+desc = "Open terminal in current directory"

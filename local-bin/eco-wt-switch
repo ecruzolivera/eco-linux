@@ -33,3 +33,13 @@ branch=${branch//[[:space:]]/}
 [[ -z $branch ]] && exit 0
 
 wt switch --create --no-cd "$branch"
+status=$?
+if [[ $status -ne 0 ]]; then
+  printf '\nWorktree setup failed (exit %s). The checkout may exist; retry initialization there.\n' "$status"
+  printf 'Review the error and diagnostic log path above.\n'
+  if [[ -t 0 ]]; then
+    read -n 1 -r -s -p 'Press any key to close...' || true
+    printf '\n'
+  fi
+fi
+exit "$status"

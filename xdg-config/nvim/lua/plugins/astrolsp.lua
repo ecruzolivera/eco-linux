@@ -8,15 +8,15 @@ return {
   opts = {
     -- Configuration table of features provided by AstroLSP
     features = {
-      codelens = true,        -- enable/disable codelens refresh on start
-      inlay_hints = false,    -- enable/disable inlay hints on start
+      codelens = true, -- enable/disable codelens refresh on start
+      inlay_hints = false, -- enable/disable inlay hints on start
       semantic_tokens = true, -- enable/disable semantic token highlighting
     },
     -- customize lsp formatting options
     formatting = {
       -- control auto formatting on save
       format_on_save = {
-        enabled = true,     -- enable or disable format on save globally
+        enabled = true, -- enable or disable format on save globally
         allow_filetypes = { -- enable format on save for specified filetypes only
           -- "go",
         },
@@ -41,10 +41,9 @@ return {
     -- client specific configuration can also go in `lsp/` in your configuration root (see `:h lsp-config`)
     config = {
       clangd = { capabilities = { offsetEncoding = "utf-8" } },
-      ltex = {
+      ltex_plus = {
         settings = {
           ltex = {
-            -- language = "auto",
             language = "auto",
             checkFrequency = "save",
             additionalRules = {
@@ -72,11 +71,8 @@ return {
                 table.insert(words, word)
               end
               local dics = {
-                ["en"] = words,
                 ["en-US"] = words,
                 ["es"] = words,
-                ["es-ES"] = words,
-                ["es-MX"] = words,
               }
               return dics
             end)(),
@@ -91,6 +87,7 @@ return {
 
       -- the key is the server that is being setup with `vim.lsp.config`
       -- rust_analyzer = false, -- setting a handler to false will disable the set up of that language server
+      ltex = false, -- disable legacy ltex-ls (incompatible with Java 24+); use ltex_plus instead
     },
     -- Configure buffer local auto commands to add when attaching a language server
     autocmds = {
@@ -126,7 +123,7 @@ return {
           desc = "Toggle LSP semantic highlight (buffer)",
           cond = function(client)
             return client:supports_method("textDocument/semanticTokens/full")
-                and vim.lsp.semantic_tokens ~= nil
+              and vim.lsp.semantic_tokens ~= nil
           end,
         },
         gra = false,

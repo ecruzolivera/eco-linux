@@ -22,7 +22,7 @@ return {
         "tree-sitter-cli",
 
         "lemminx",
-        "ltex-ls",
+        "ltex-ls-plus",
       },
     },
   },

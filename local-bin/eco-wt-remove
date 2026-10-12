@@ -1,45 +1,226 @@
 #!/usr/bin/env bash
 
-# Remove a Git worktree from herdr (or a shell) via worktrunk.
-# Bound to prefix+shift+d in herdr as a popup: fzf lists the repo's removable
-# worktrees, pick one, and wt remove deletes the checkout (killing dev-server
-# / agent processes with --reap), deletes the branch if merged, and fires the
-# pre-remove hook which closes the standalone herdr workspace.
+# Remove a selected checkout via worktrunk; its post-remove hook closes Herdr.
+# Bound to prefix+shift+d. Logs live outside the checkout and survive removal.
+set -o pipefail
+umask 077
 
-# Resolve the target repo directory. In a herdr popup the active pane id is
-# provided via HERDR_ACTIVE_PANE_ID; its cwd is the repo the user is in.
+script_path=$(realpath -- "${BASH_SOURCE[0]}") || exit 1
+worker_mode=false
+if [[ ${1:-} == --worker && $# -eq 6 ]]; then
+  worker_mode=true
+  run_dir=$2
+  primary=$3
+  target=$4
+  workspace_id=$5
+  workspace_lookup_failed=$6
+  cd "$primary" || exit 1
+else
+  [[ $# -eq 0 ]] || { printf 'Usage: eco-wt-remove\n' >&2; exit 2; }
+  state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/eco-wt-remove
+  mkdir -p -- "$state_dir" || exit 1
+  run_dir=$(mktemp -d "$state_dir/remove.XXXXXXXX") || exit 1
+fi
+log=$run_dir/output.log
+if [[ $worker_mode == false ]]; then
+  exec 3>&1
+  # --reap must not kill the log writer when launched from the target checkout.
+  exec > >(cd "$run_dir" && exec tee -a "$log") 2>&1
+fi
+finish_run() {
+  local status=$?
+  printf 'exit: %s\n' "$status" >> "$run_dir/events.log"
+  if [[ $worker_mode == true ]]; then
+    printf '%s\n' "$status" > "$run_dir/worker-status"
+  fi
+}
+trap finish_run EXIT
+trap 'printf "interrupted: SIGHUP\n" >> "$run_dir/events.log"; exit 129' HUP
+trap 'printf "interrupted: SIGTERM\n" >> "$run_dir/events.log"; exit 143' TERM
+trap 'printf "interrupted: SIGINT\n" >> "$run_dir/events.log"; exit 130' INT
+if [[ $worker_mode == false ]]; then
+  printf 'started: %s\npane: %s\ncwd: %s\n' "$(date -Is)" \
+    "${HERDR_ACTIVE_PANE_ID:-${HERDR_PANE_ID:-}}" "$PWD" >> "$run_dir/events.log"
+fi
+
+pause_popup() {
+  printf '\nLog: %s\n' "$log"
+  if [[ -t 0 ]]; then
+    read -n 1 -r -s -p 'Press any key to close...' || true
+    printf '\n'
+  fi
+}
+
+fail() {
+  printf '\nRemoval failed: %s\n' "$*"
+  pause_popup
+  exit 1
+}
+
 resolve_repo() {
-  local pane_cwd
-  if [[ -n ${HERDR_ACTIVE_PANE_ID:-} ]]; then
-    pane_cwd=$(herdr pane get --pane "$HERDR_ACTIVE_PANE_ID" 2>/dev/null \
-      | jq -r '.result.pane.cwd // empty' 2>/dev/null)
-    [[ -n $pane_cwd ]] && printf '%s\n' "$pane_cwd" && return 0
+  local pane_cwd pane_id=${HERDR_ACTIVE_PANE_ID:-${HERDR_PANE_ID:-}}
+  if [[ -n ${HERDR_ACTIVE_PANE_CWD:-} ]]; then
+    printf '%s\n' "$HERDR_ACTIVE_PANE_CWD"
+    return 0
+  fi
+  if [[ -n $pane_id ]]; then
+    pane_cwd=$(herdr pane get "$pane_id" \
+      | jq -r '.result.pane.foreground_cwd // .result.pane.cwd // empty') || return 1
+    [[ -n $pane_cwd ]] || return 1
+    printf '%s\n' "$pane_cwd"
+    return 0
   fi
   printf '%s\n' "$PWD"
 }
 
-dir=$(resolve_repo)
+run_removal() {
+  local removal_status branch outcome workspaces workspace_status attempt
+  printf 'Removing checkout: %s\n' "$target"
+  printf 'removal started\n' >> "$run_dir/events.log"
+  # Only stdout is captured as JSON; stdin stays attached for project-hook prompts.
+  wt remove --reap --foreground --format=json "$target" > "$run_dir/result.json"
+  removal_status=$?
+  printf 'removal exit: %s\n' "$removal_status" >> "$run_dir/events.log"
+  if [[ $removal_status -ne 0 ]]; then
+    printf 'Checkout removal failed (exit %s).\n' "$removal_status"
+    printf 'Workspace closure was not requested by this script.\n'
+    summary="Removal failed for $target (exit $removal_status)"
+    return "$removal_status"
+  fi
+  if ! jq -e --arg path "$target" '
+    type == "array" and length == 1 and .[0].path == $path
+    and (.[0].branch_outcome | type == "string")
+  ' "$run_dir/result.json" >/dev/null; then
+    printf 'Worktrunk finished, but its removal result is invalid; inspect result.json before retrying.\n'
+    summary="Removal outcome unknown for $target; inspect result.json"
+    return 1
+  fi
 
-top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || {
-  printf 'Not inside a git repository (cwd: %s)\n' "$dir"
-  read -n 1 -r -s -p 'Press any key to close...'
-  exit 1
+  printf 'Checkout: removed %s\n' "$target"
+  branch=$(jq -r '.[0].branch // "(detached HEAD)"' "$run_dir/result.json")
+  outcome=$(jq -r '.[0].branch_outcome' "$run_dir/result.json")
+  case $outcome in
+    deleted) printf 'Branch: deleted %s\n' "$branch" ;;
+    retained_unmerged) printf 'Branch: retained %s (not integrated into the default branch).\n' "$branch" ;;
+    retained_checked_out) printf 'Branch: retained %s (checked out in another worktree).\n' "$branch" ;;
+    retained_raced) printf 'Branch: retained %s (changed during removal).\n' "$branch" ;;
+    retained_failed) printf 'Branch: retained %s (Git branch deletion failed).\n' "$branch" ;;
+    not_attempted) printf 'Branch: deletion not attempted (%s).\n' "$branch" ;;
+    *) printf 'Branch: %s (%s).\n' "$branch" "$outcome" ;;
+  esac
+
+  if [[ $workspace_lookup_failed == true ]]; then
+    workspace_status="status unavailable; see $run_dir/workspace-error.log"
+  elif [[ -z $workspace_id ]]; then
+    workspace_status='none open for this checkout'
+  else
+    workspace_status='closure pending or failed; inspect wt config state logs'
+    for ((attempt = 0; attempt < 50; attempt++)); do
+      workspaces=$(herdr workspace list 2>"$run_dir/workspace-error.log") || {
+        workspace_status='status unavailable; checkout removal succeeded'
+        break
+      }
+      jq -e '.result.workspaces | type == "array"' <<<"$workspaces" >/dev/null || {
+        workspace_status='status unavailable (invalid Herdr response)'
+        break
+      }
+      if ! jq -e --arg id "$workspace_id" 'any(.result.workspaces[]; .workspace_id == $id)' \
+        <<<"$workspaces" >/dev/null; then
+        workspace_status="closed $workspace_id"
+        break
+      fi
+      sleep 0.1
+    done
+  fi
+  printf 'Workspace: %s.\n' "$workspace_status"
+  summary="Checkout removed: $branch; branch $outcome; workspace $workspace_status"
 }
-cd "$top" || exit 1
 
-# Branches with a worktree that is not the main checkout.
-mapfile -t branches < <(wt list --format=json 2>/dev/null \
-  | jq -r '.items[] | select(.worktree.main == false and .worktree.path) | .branch')
+source "$(dirname "$script_path")/eco-herdr-lib" || fail 'Cannot load Herdr helpers.'
+if [[ $worker_mode == true ]]; then
+  printf '%s\n' "$$" > "$run_dir/worker-pid"
+  run_removal
+  removal_status=$?
+  printf '\nLog: %s\n' "$log"
+  herdr notification show 'Worktree removal' --body "$summary. Log: $log" --sound none \
+    >/dev/null 2>>"$run_dir/workspace-error.log" || true
+  exit "$removal_status"
+fi
 
-if [[ ${#branches[@]} -eq 0 ]]; then
+dir=$(resolve_repo) || fail 'Cannot resolve the active pane directory.'
+top=$(git -C "$dir" rev-parse --show-toplevel) \
+  || fail "Not inside a Git repository (cwd: $dir)."
+cd "$top" || fail "Cannot enter $top."
+
+listing=$(wt list --format=json --config-set list.json-schema=2) \
+  || fail 'Worktrunk could not list worktrees.'
+printf '%s\n' "$listing" > "$run_dir/list.json"
+primary=$(jq -er '
+  .items | if type != "array" then error("invalid Worktrunk list") else . end
+  | map(select(.worktree.main == true) | .worktree.path)
+  | if length != 1 then error("expected one primary checkout") else .[0] end
+  | select(type == "string" and length > 0)
+' <<<"$listing") || fail 'Cannot identify the primary checkout from Worktrunk JSON.'
+
+# A hidden JSON payload preserves exact paths, including spaces and detached HEADs.
+rows=$(jq -r '
+  .items[] | select(.worktree.main == false and .worktree.path != null)
+  | if (.worktree.path | type) != "string" then error("invalid worktree path") else . end
+  | [({path: .worktree.path, branch: .branch} | @base64),
+     ((.branch // "(detached HEAD)") + "  " + .worktree.path
+       | gsub("[\\t\\r\\n]"; " "))] | @tsv
+' <<<"$listing") || fail 'Invalid worktree entries in Worktrunk JSON.'
+
+if [[ -z $rows ]]; then
   printf 'No removable worktrees here.\n'
-  read -n 1 -r -s -p 'Press any key to close...'
+  pause_popup
   exit 0
 fi
 
-branch=$(printf '%s\n' "${branches[@]}" | fzf --prompt='remove worktree: ' --border \
-  --header='j/k or arrows to select, enter to remove, esc to cancel')
+# Both the popup and Worktrunk stay outside the checkout being removed.
+cd "$primary" || fail "Cannot enter primary checkout $primary."
+selection=$(printf '%s\n' "$rows" | fzf --delimiter=$'\t' --with-nth=2.. \
+  --prompt='remove worktree: ' --border \
+  --header='enter to remove checkout (branch deleted if integrated), esc to cancel')
+picker_status=$?
+case $picker_status in
+  0) ;;
+  1|130) printf 'Cancelled.\n'; exit 0 ;;
+  *) fail "Worktree picker failed (exit $picker_status)." ;;
+esac
+[[ -n $selection ]] || fail 'The picker returned an empty selection.'
+payload=${selection%%$'\t'*}
+target=$(jq -er --arg payload "$payload" '$payload | @base64d | fromjson | .path' \
+  <<<null) || fail 'The picker returned an invalid worktree.'
+jq -e --arg path "$target" 'any(.items[];
+  .worktree.main == false and .worktree.path == $path)' <<<"$listing" >/dev/null \
+  || fail 'The selection is not a removable checkout.'
+printf 'selected: %s\nprimary: %s\n' "$target" "$primary" >> "$run_dir/events.log"
 
-[[ -z $branch ]] && exit 0
+workspace_id=
+workspace_lookup_failed=false
+workspace_id=$(eco_workspace_id_by_path "$target" 2>"$run_dir/workspace-error.log") \
+  || workspace_lookup_failed=true
+export ECO_WT_REMOVE_PATH="$target" ECO_WT_REMOVE_WORKSPACE_ID="$workspace_id"
 
-wt remove --reap --foreground "$branch"
+# A popup is hung up when its active workspace closes. Reparent the worker so
+# removal and its final notification survive; keep stdin for approval prompts.
+if [[ -n ${HERDR_ACTIVE_PANE_ID:-} && -t 0 ]]; then
+  setsid --fork "$script_path" --worker "$run_dir" "$primary" "$target" \
+    "$workspace_id" "$workspace_lookup_failed" <&0 >>"$log" 2>&1 \
+    || fail 'Cannot start the removal worker.'
+  for ((attempt = 0; attempt < 50; attempt++)); do
+    [[ -s $run_dir/worker-pid ]] && break
+    sleep 0.1
+  done
+  [[ -s $run_dir/worker-pid ]] || fail 'The removal worker did not start; inspect the log.'
+  read -r worker_pid < "$run_dir/worker-pid"
+  tail --pid="$worker_pid" -n +1 -f "$log" >&3
+  [[ -s $run_dir/worker-status ]] || fail 'The worker stopped without reporting an outcome.'
+  read -r removal_status < "$run_dir/worker-status"
+else
+  run_removal
+  removal_status=$?
+fi
+pause_popup
+exit "$removal_status"

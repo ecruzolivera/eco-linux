@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# shellcheck source=/home/ernesto/.local/bin/eco-herdr-lib
-source /home/ernesto/.local/bin/eco-herdr-lib
+# shellcheck source=eco-herdr-lib
+source "$HOME/.local/bin/eco-herdr-lib"
 
 PROJECTS_DIR=$ECO_PROJECTS_DIR
 

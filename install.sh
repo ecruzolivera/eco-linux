@@ -8,6 +8,7 @@ INSTALLER_SYS_CONFIG_DIR="$INSTALLER_DIR/system-config"
 INSTALLER_XDG_CONFIG_DIR="$INSTALLER_DIR/xdg-config"
 INSTALLER_HOME_ROOT_CONFIG_DIR="$INSTALLER_DIR/home-root-config"
 INSTALLER_LOCAL_BIN_DIR="$INSTALLER_DIR/local-bin"
+INSTALLER_LOCAL_SHARE_DIR="$INSTALLER_DIR/local-share"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,6 +37,7 @@ info "Installer system config: $INSTALLER_SYS_CONFIG_DIR"
 info "Installer xdg config: $INSTALLER_XDG_CONFIG_DIR"
 info "Installer home-root config: $INSTALLER_HOME_ROOT_CONFIG_DIR"
 info "Installer local bin: $INSTALLER_LOCAL_BIN_DIR"
+info "Installer local share: $INSTALLER_LOCAL_SHARE_DIR"
 
 echo -e "${CYAN}╔══════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║        eco-linux v$VERSION Installer ║${NC}"

@@ -1,0 +1,8 @@
+// User bindings outside of dms-managed files (dms regenerations won't touch this).
+binds {
+    // Mod+W: single-key floating menu for installed web-app PWAs
+    Mod+W hotkey-overlay-title="Web Apps" { spawn-sh "kitty --class=webapp-menu -e webapp-menu"; }
+
+    Mod+D             hotkey-overlay-title="Open Browser: Chromium" { spawn "chromium"; }
+    Mod+Shift+D       hotkey-overlay-title="Open Browser: Firefox Dev" { spawn "firefox-developer-edition"; }
+}

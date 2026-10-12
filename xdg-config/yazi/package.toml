@@ -8,5 +8,20 @@ use = "yazi-rs/plugins:smart-enter"
 rev = "de33976"
 hash = "56fdabc96fc1f4d53c96eb884b02a5be"
 
+[[plugin.deps]]
+use = "ecruzolivera/open-terminal"
+rev = "3780d31"
+hash = "1871cc4523ea6ec63ebe02280a43c3ea"
+
+[[plugin.deps]]
+use = "boydaihungst/pref-by-location"
+rev = "0248cfe"
+hash = "348b3fc3b313acfb21814ffd5f49b434"
+
+[[plugin.deps]]
+use = "barbanevosa/linemode-plus"
+rev = "4d0d034"
+hash = "5d0ac26725d9a975bef1d0887374f10e"
+
 [flavor]
 deps = []

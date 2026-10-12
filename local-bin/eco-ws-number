@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# eco-ws-number: keep each workspace's $num token equal to its sidebar position.
+# Idempotent pass: reads the live workspace list, reports a `num` token only for
+# workspaces whose token is missing or stale; never rewrites current values.
+set -uo pipefail
+
+HERDR_BIN=${HERDR_BIN_PATH:-$(command -v herdr)}
+[[ -x $HERDR_BIN ]] || { echo "eco-ws-number: herdr binary not found" >&2; exit 1; }
+
+# Resolve the server socket (HERDR_SOCKET_PATH wins; else from status).
+if [[ -n ${HERDR_SOCKET_PATH:-} ]]; then
+  SOCKET=$HERDR_SOCKET_PATH
+else
+  SOCKET=$("$HERDR_BIN" status --json 2>/dev/null | jq -r '.server.socket // empty')
+fi
+if [[ -z $SOCKET || ! -S $SOCKET ]]; then
+  echo "eco-ws-number: no live herdr socket (${SOCKET:-unknown})" >&2
+  exit 1
+fi
+
+# Socket-scoped lock so concurrent invocations serialize report/write passes.
+LOCK_DIR=${XDG_RUNTIME_DIR:-/tmp}
+LOCK_FILE="$LOCK_DIR/eco-ws-number-$(printf '%s' "$SOCKET" | sha256sum | cut -c1-12).lock"
+exec 9>"$LOCK_FILE" || exit 1
+flock -x 9 || { echo "eco-ws-number: lock failed" >&2; exit 1; }
+
+export ECO_WSN_SOCKET=$SOCKET
+python3 - "$@" <<'PYEOF'
+import json, os, socket, sys, time
+
+sock = os.environ["ECO_WSN_SOCKET"]
+source = "eco:ws-number"
+retries = int(os.environ.get("ECO_WSN_RETRIES", "3"))
+
+def call(method, params):
+    with socket.socket(socket.AF_UNIX) as s:
+        s.settimeout(5)
+        s.connect(sock)
+        s.sendall((json.dumps({"id": method, "method": method, "params": params}) + "\n").encode())
+        buf = b""
+        while True:
+            chunk = s.recv(1 << 16)
+            if not chunk:
+                break
+            buf += chunk
+    return json.loads(buf.decode())
+
+def ws_list():
+    for _ in range(max(1, retries)):
+        try:
+            resp = call("workspace.list", {})
+        except (OSError, TimeoutError, ValueError):
+            time.sleep(0.3)
+            continue
+        workspaces = (resp.get("result") or {}).get("workspaces")
+        if not isinstance(workspaces, list):
+            time.sleep(0.3)
+            continue
+        return workspaces
+    raise RuntimeError("failed to read workspace list")
+
+try:
+    workspaces = ws_list()
+except RuntimeError as e:
+    print(f"eco-ws-number: {e}", file=sys.stderr)
+    sys.exit(1)
+
+changed = 0
+for ws in workspaces:
+    number = ws.get("number")
+    tokens = ws.get("tokens") or {}
+    if not isinstance(number, int):
+        continue
+    current = tokens.get("num")
+    want = str(number)
+    if current == want:
+        continue
+    for attempt in range(max(1, retries)):
+        try:
+            call("workspace.report_metadata", {
+                "workspace_id": ws["workspace_id"],
+                "source": source,
+                "tokens": {"num": want},
+            })
+            changed += 1
+            shown = current if current is not None else "(missing)"
+            print(f"{ws['workspace_id']}: num {shown} -> {want}")
+            break
+        except (OSError, TimeoutError, ValueError):
+            if attempt == retries - 1:
+                print(f"eco-ws-number: failed reporting {ws['workspace_id']}", file=sys.stderr)
+                sys.exit(1)
+            time.sleep(0.3)
+PYEOF
