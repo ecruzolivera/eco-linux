@@ -8,11 +8,7 @@ systemctl enable sddm
 systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service dms.service
 systemctl enable power-profiles-daemon
 run_user env "ECO_APPS=$ECO_APPS" python3 "$INSTALLER_DIR/tests/package-coverage.py" --profile "$ECO_APPS" --packages
-if [[ $ECO_SKIP_USER_SETUP == 1 ]]; then
-  warn 'Provisioning finished, but user bootstrap was skipped. Run lib/user-setup.sh as your user to complete it.'
-else
-  info 'Provisioning and user-level checks completed'
-fi
+info 'Provisioning and user-level checks completed'
 info 'No disk, encryption, bootloader or snapshot configuration was performed; accounts remain separate'
 warn 'Normal package-upgrade hooks may regenerate existing kernel/initramfs/boot files'
 warn 'Clean-Arch VM and real GPU/suspend validation remain deferred; reproducibility is not yet proven'

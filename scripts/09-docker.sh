@@ -1,11 +1,13 @@
 phase 'Networking and Docker'
 if [[ $ECO_NETWORK == networkmanager ]]; then
-  for service in systemd-networkd iwd dhcpcd connman; do
-    if systemctl is-active --quiet "$service" || systemctl is-enabled --quiet "$service"; then
-      error "$service already manages networking; migrate it manually before choosing NetworkManager"
-    fi
-  done
-  systemctl enable NetworkManager
+  # Recheck after package installation; never replace a newly started manager.
+  current_network=$(select_network)
+  if [[ $current_network == networkmanager ]]; then
+    systemctl enable NetworkManager
+    info 'NetworkManager enabled for the next boot; current connectivity left intact'
+  else
+    info 'Network manager detected during installation; preserving it'
+  fi
 else
   info 'Existing network/DNS services and resolv.conf preserved'
 fi

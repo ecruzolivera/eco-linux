@@ -1,10 +1,10 @@
 phase 'Graphics'
 pci=$(lspci -nn | grep -E 'VGA|3D|Display' || true)
 existing=$(pacman -Qq | grep -E '^nvidia(-open)?(-dkms|-lts)?$|^nvidia-[0-9]+xx-dkms$' || true)
-driver=$(select_nvidia "$pci" "$existing" "$ECO_NVIDIA")
+driver=$(select_nvidia "$pci" "$existing")
 case $driver in
   off) info 'No NVIDIA changes requested/needed'; return;;
-  manual) error 'Unrecognized/older NVIDIA generation. Use --nvidia off and configure a supported driver manually; --nvidia open is only for Turing or newer';;
+  manual) warn 'Unrecognized/older NVIDIA generation: graphics changes skipped. Configure a supported driver manually before using the desktop'; return;;
   existing) info "Keeping installed driver: $existing";;
   open) info 'Detected/selected modern NVIDIA; installing nvidia-open-dkms';;
 esac

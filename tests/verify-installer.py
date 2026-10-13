@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Safe installer tests: disposable homes, inert module fixtures and mocked tools."""
 import importlib.util
+import fcntl
 import os
+import pty
+import select
 import shutil
 import subprocess
 import sys
 import tempfile
+import termios
+import time
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -44,12 +49,23 @@ class InstallerTests(unittest.TestCase):
 
     def test_defaults_and_invalid_option(self):
         result = self.bash(f'''error() {{ exit 2; }}; source "{REPO}/lib/installer.sh"
-            parse_options
-            printf '%s %s %s %s %s\\n' "$ECO_PROFILE" "$ECO_APPS" "$ECO_CONFIG_MODE" "$ECO_NETWORK" "$ECO_AUTOLOGIN"
+            ECO_PROFILE=ernesto ECO_APPS=core ECO_CONFIG_MODE=preserve
+            installer_defaults
+            printf '%s %s %s %s\\n' "$ECO_PROFILE" "$ECO_APPS" "$ECO_CONFIG_MODE" "$ECO_FIREWALL"
+            ECO_REMOTE_SESSION=1
+            installer_defaults
+            printf '%s\\n' "$ECO_FIREWALL"
         ''')
-        self.assertEqual(result.stdout.strip(), 'portable personal preserve preserve 0')
-        result = self.bash(f'error() {{ exit 2; }}; source "{REPO}/lib/installer.sh"; parse_options --profile invalid')
-        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), ['portable personal replace enable', 'preserve'])
+        repo, env = self.fixture()
+        marker = self.root / 'unexpected'
+        (repo / 'scripts/00-checks.sh').write_text(f'touch "{marker}"\n')
+        result = subprocess.run(['/bin/bash', str(repo / 'install.sh'), '--profile', 'portable'],
+                                env=env, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('No installation options', result.stderr)
+        self.assertFalse(marker.exists())
 
     def fixture(self):
         repo = self.root / 'checkout with spaces'
@@ -71,10 +87,10 @@ class InstallerTests(unittest.TestCase):
         (repo / 'scripts/02-yay.sh').write_text('cd /\nprintf "yay\\n" >> "$ECO_TEST_LOG"\n')
         (repo / 'scripts/03-packages.sh').write_text('printf "packages:%s\\n" "$ECO_APPS" >> "$ECO_TEST_LOG"\n')
         for _ in range(2):
-            result = subprocess.run(['/bin/bash', str(repo / 'install.sh'), '--apps', 'core'], cwd=self.home,
+            result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], cwd=self.home,
                                     env=env, text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.root / 'calls').read_text().splitlines(), ['checks', 'yay', 'packages:core'] * 2)
+        self.assertEqual((self.root / 'calls').read_text().splitlines(), ['checks', 'yay', 'packages:personal'] * 2)
 
     def test_failure_and_signal_stop_following_modules(self):
         for failure, code in [('false', 1), ('kill -TERM $$', 143), ('kill -INT $$', 130)]:
@@ -138,6 +154,66 @@ class InstallerTests(unittest.TestCase):
         self.deploy(mode='replace')
         self.assertEqual(len(list((self.home / '.local/state/eco-linux/config-backups').glob('replace-*'))), 1)
 
+    def configure_sddm_fixture(self, user='target'):
+        # Only the disposable path is writable; never source the real /etc-writing module.
+        script = (REPO / 'scripts/04-sddm.sh').read_text().replace('/etc/sddm.conf.d', str(self.root / 'sddm'))
+        return self.bash(f'''
+          phase() {{ :; }}; info() {{ :; }}
+          warn() {{ printf '%s\\n' "$*" >&2; }}
+          error() {{ printf '%s\\n' "$*" >&2; exit 46; }}
+          REAL_USER={user}
+          INSTALLER_SYS_CONFIG_DIR="{REPO}/system-config"
+          source /dev/stdin
+        ''', input=script)
+
+    def test_sddm_autologin_uses_target_user_and_is_idempotent(self):
+        result = self.configure_sddm_fixture(user='other-user')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        configuration = self.root / 'sddm/autologin.conf'
+        self.assertEqual(configuration.read_text(), '[Autologin]\nUser=other-user\nSession=niri.desktop\n')
+        self.assertEqual(configuration.stat().st_mode & 0o777, 0o644)
+        self.assertIn('encrypted login keyrings', result.stderr)
+        before = configuration.stat().st_mtime_ns
+        result = self.configure_sddm_fixture(user='other-user')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(configuration.stat().st_mtime_ns, before)
+        self.assertEqual(list(configuration.parent.glob('autologin.conf.eco.*')), [])
+
+    def test_sddm_autologin_backs_up_changed_existing_configuration(self):
+        directory = self.root / 'sddm'
+        directory.mkdir()
+        configuration = directory / 'autologin.conf'
+        previous = '[Autologin]\nUser=previous\nSession=other.desktop\n'
+        configuration.write_text(previous)
+        configuration.chmod(0o640)
+        unrelated = directory / 'theme.conf'
+        unrelated.write_text('existing theme\n')
+        result = self.configure_sddm_fixture()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        backups = list(directory.glob('autologin.conf.eco.*'))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), previous)
+        self.assertEqual(backups[0].stat().st_mode & 0o777, 0o640)
+        self.assertIn('User=target\n', configuration.read_text())
+        result = self.configure_sddm_fixture(user='another-user')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        backups = list(directory.glob('autologin.conf.eco.*'))
+        self.assertEqual(len(backups), 2)
+        self.assertIn('[Autologin]\nUser=target\nSession=niri.desktop\n', [p.read_text() for p in backups])
+        self.assertEqual(unrelated.read_text(), 'existing theme\n')
+
+    def test_sddm_autologin_refuses_symlink_without_external_changes(self):
+        directory = self.root / 'sddm'
+        directory.mkdir()
+        outside = self.root / 'outside-sddm'
+        outside.write_text('preserved\n')
+        configuration = directory / 'autologin.conf'
+        configuration.symlink_to(outside)
+        result = self.configure_sddm_fixture()
+        self.assertEqual(result.returncode, 46, result.stderr)
+        self.assertTrue(configuration.is_symlink())
+        self.assertEqual(outside.read_text(), 'preserved\n')
+
     def test_directory_symlink_refused_without_external_changes(self):
         outside = self.root / 'outside'
         outside.mkdir()
@@ -155,14 +231,27 @@ class InstallerTests(unittest.TestCase):
 
     def test_nvidia_selection(self):
         result = self.bash(f'''source "{REPO}/lib/installer.sh"
-          select_nvidia 'Intel GPU' '' auto
-          select_nvidia 'NVIDIA T600 Mobile' '' auto
-          select_nvidia 'NVIDIA GTX 1080' '' auto
-          select_nvidia 'NVIDIA T600 Mobile' 'nvidia-open-dkms' auto
-          select_nvidia 'NVIDIA T600 Mobile' '' off
-          select_nvidia $'NVIDIA T600 Mobile\nNVIDIA GTX 1080' '' auto
+          select_nvidia 'Intel GPU' ''
+          select_nvidia 'NVIDIA T600 Mobile' ''
+          select_nvidia 'NVIDIA GTX 1080' ''
+          select_nvidia 'NVIDIA T600 Mobile' 'nvidia-open-dkms'
+          select_nvidia $'NVIDIA T600 Mobile\nNVIDIA GTX 1080' ''
         ''')
-        self.assertEqual(result.stdout.splitlines(), ['off', 'open', 'manual', 'existing', 'off', 'manual'])
+        self.assertEqual(result.stdout.splitlines(), ['off', 'open', 'manual', 'existing', 'manual'])
+
+    def test_unknown_nvidia_is_reported_without_package_changes(self):
+        result = self.bash(f'''
+          source "{REPO}/lib/installer.sh"
+          phase() {{ :; }}; info() {{ :; }}
+          warn() {{ printf '%s\\n' "$*" >&2; }}
+          lspci() {{ printf 'VGA compatible controller: NVIDIA GTX 1080\\n'; }}
+          pacman() {{ [[ $* == -Qq ]] || return 98; }}
+          source "{REPO}/scripts/05-nvidia.sh"
+          printf 'continued\\n'
+        ''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('graphics changes skipped', result.stderr)
+        self.assertEqual(result.stdout.strip(), 'continued')
 
     def test_pinned_integration_prompts_read_terminal_not_manifest(self):
         repo = self.root / 'pinned-repo'
@@ -217,6 +306,183 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue((marker / 'installed-herdr-bin').exists())
         self.assertTrue((marker / 'installed-opencode-beta').exists())
         self.assertEqual((marker / 'done').read_text().strip(), 'complete')
+
+    def test_network_detection_preserves_active_or_enabled_manager(self):
+        for service in ['NetworkManager', 'systemd-networkd', 'iwd', 'dhcpcd', 'connman', 'netctl',
+                        'dhcpcd@eth0', 'netctl@home', 'netctl-auto@wlan0', 'netctl-ifplugd@eth0', 'unrelated']:
+            for state in ['list-units', 'list-unit-files']:
+                with self.subTest(service=service, state=state):
+                    result = self.bash(f'''
+                      source "{REPO}/lib/installer.sh"
+                      systemctl() {{
+                        if [[ $1 == '{state}' ]]; then printf '{service}.service loaded active running\\n'; fi
+                      }}
+                      select_network
+                    ''')
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout.strip(), 'networkmanager' if service == 'unrelated' else 'preserve')
+
+    def test_network_detection_failure_is_not_treated_as_missing_manager(self):
+        result = self.bash(f'''
+          source "{REPO}/lib/installer.sh"
+          systemctl() {{ return 45; }}
+          network=$(select_network)
+          printf 'unexpected:%s\\n' "$network"
+        ''')
+        self.assertEqual(result.returncode, 45, result.stderr)
+        self.assertEqual(result.stdout, '')
+
+    def test_networkmanager_enablement_rechecks_network_and_never_starts_it(self):
+        docker = self.root / 'docker'
+        docker.mkdir()
+        for selection in ['preserve', 'networkmanager']:
+            with self.subTest(selection=selection):
+                log = self.root / 'network-calls'
+                log.write_text('')
+                result = self.bash(f'''
+                  phase() {{ :; }}; info() {{ :; }}; warn() {{ :; }}
+                  ECO_NETWORK=networkmanager REAL_USER=target
+                  select_network() {{ printf '%s\\n' '{selection}'; }}
+                  mkdir() {{ :; }}; usermod() {{ :; }}
+                  systemctl() {{ printf '%s\\n' "$*" >> "{log}"; }}
+                  source /dev/stdin
+                ''', input=(REPO / 'scripts/09-docker.sh').read_text().replace('/etc/docker', str(docker)))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                calls = log.read_text().splitlines()
+                self.assertEqual('enable NetworkManager' in calls, selection == 'networkmanager')
+                self.assertFalse(any('--now' in call or call.startswith('start ') for call in calls))
+
+    def piped_bootstrap_fixture(self):
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text('''
+          [[ -t 0 && -t 1 ]]
+          read -r -p 'FIXTURE_CONFIRM: ' answer
+          [[ $answer == approve ]]
+          printf 'confirmed:%s:%s:%s:%s\n' "$answer" "$ECO_APPS" "$ECO_CONFIG_MODE" "$ECO_FIREWALL" >> "$ECO_TEST_LOG"
+        ''')
+        (repo / 'scripts/zz-final.sh').write_text('printf "complete\\n" >> "$ECO_TEST_LOG"\n[[ ${ECO_TEST_INSTALL_EXIT:-0} == 0 ]] || exit "$ECO_TEST_INSTALL_EXIT"\n')
+        bins = self.root / 'bin'
+        (bins / 'id').write_text('#!/bin/sh\nif [ "${ECO_TEST_ELEVATED:-0}" = 1 ]; then printf "0\\n"; else printf "1000\\n"; fi\n')
+        (bins / 'sudo').write_text('''#!/bin/bash
+set -euo pipefail
+[[ -t 0 ]]
+printf 'sudo:%s\n' "$*" >> "$ECO_TEST_LOG"
+export ECO_TEST_ELEVATED=1
+unset SSH_CONNECTION SSH_CLIENT SSH_TTY
+exec "$@"
+''')
+        git = bins / 'git'
+        git.write_text('''#!/bin/bash
+set -euo pipefail
+[[ -t 0 ]]
+case $1 in
+  clone)
+    [[ $# == 7 && $2 == --depth && $3 == 1 && $4 == --branch && $5 == master && $6 == https://github.com/ecruzolivera/eco-linux.git ]]
+    printf 'download:%s\n' "${7%/repo}" >> "$ECO_TEST_LOG"
+    if [[ ${ECO_TEST_CLONE_SIGNAL:-} == TERM ]]; then kill -TERM "$PPID"; exit 0; fi
+    [[ ${ECO_TEST_CLONE_EXIT:-0} == 0 ]] || exit "$ECO_TEST_CLONE_EXIT"
+    cp -R -- "$ECO_TEST_CHECKOUT" "$7";;
+  -C)
+    [[ $3 == rev-parse && $4 == HEAD ]]
+    printf '0516e640516e640516e640516e640516e640516e64\n';;
+  *) exit 98;;
+esac
+''')
+        git.chmod(0o755)
+        env['ECO_TEST_CHECKOUT'] = str(repo)
+        for name in ['SSH_CONNECTION', 'SSH_CLIENT', 'SSH_TTY', 'ECO_REMOTE_SESSION']:
+            env.pop(name, None)
+        return repo, env
+
+    def run_piped_bootstrap(self, env, script=None, cwd=None):
+        """A real stdin pipe plus a controlling PTY; every privileged command is mocked."""
+        master, slave = pty.openpty()
+
+        def controlling_terminal():
+            os.setsid()
+            fcntl.ioctl(1, termios.TIOCSCTTY, 0)
+
+        process = subprocess.Popen(['/bin/bash'], stdin=subprocess.PIPE, stdout=slave, stderr=slave,
+                                   cwd=cwd or self.home, env=env, preexec_fn=controlling_terminal)
+        os.close(slave)
+        output = bytearray()
+        try:
+            process.stdin.write((script if script is not None else (REPO / 'install.sh').read_text()).encode())
+            process.stdin.close()
+            os.write(master, b'approve\n')
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                ready, _, _ = select.select([master], [], [], max(0, deadline - time.monotonic()))
+                if not ready:
+                    break
+                try:
+                    chunk = os.read(master, 65536)
+                except OSError:
+                    break  # Linux PTYs signal EOF with EIO.
+                if not chunk:
+                    break
+                output.extend(chunk)
+            process.wait(timeout=max(0.1, deadline - time.monotonic()))
+            return process.returncode, output.decode(errors='replace')
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            os.close(master)
+
+    def assert_bootstrap_download_cleaned(self):
+        calls = (self.root / 'calls').read_text().splitlines()
+        download = next(line.removeprefix('download:') for line in calls if line.startswith('download:'))
+        self.assertFalse(Path(download).exists(), 'Bootstrap must clean only its owned temporary checkout')
+        return calls
+
+    def test_piped_bootstrap_uses_terminal_and_not_callers_checkout(self):
+        repo, env = self.piped_bootstrap_fixture()
+        code, output = self.run_piped_bootstrap(env, cwd=repo)
+        self.assertEqual(code, 0, output)
+        calls = self.assert_bootstrap_download_cleaned()
+        self.assertIn('confirmed:approve:personal:replace:enable', calls)
+        self.assertIn('complete', calls)
+        self.assertIn('Installing eco-linux revision', output)
+        self.assertTrue(repo.exists(), 'The original fixture checkout must not be removed')
+
+    def test_piped_bootstrap_preserves_ssh_firewall_after_sudo(self):
+        _, env = self.piped_bootstrap_fixture()
+        env['SSH_CONNECTION'] = '192.0.2.1 1234 192.0.2.2 22'
+        code, output = self.run_piped_bootstrap(env)
+        self.assertEqual(code, 0, output)
+        self.assertIn('confirmed:approve:personal:replace:preserve', self.assert_bootstrap_download_cleaned())
+
+    def test_piped_bootstrap_clone_failure_never_runs_installer(self):
+        _, env = self.piped_bootstrap_fixture()
+        env['ECO_TEST_CLONE_EXIT'] = '43'
+        code, output = self.run_piped_bootstrap(env)
+        self.assertEqual(code, 43, output)
+        calls = self.assert_bootstrap_download_cleaned()
+        self.assertFalse(any(line.startswith('sudo:') or line.startswith('confirmed:') for line in calls))
+
+    def test_piped_bootstrap_propagates_installer_failure_and_cleans_up(self):
+        _, env = self.piped_bootstrap_fixture()
+        env['ECO_TEST_INSTALL_EXIT'] = '44'
+        code, output = self.run_piped_bootstrap(env)
+        self.assertEqual(code, 44, output)
+        self.assertIn('complete', self.assert_bootstrap_download_cleaned())
+
+    def test_interrupted_piped_bootstrap_cleans_up_before_provisioning(self):
+        _, env = self.piped_bootstrap_fixture()
+        env['ECO_TEST_CLONE_SIGNAL'] = 'TERM'
+        code, output = self.run_piped_bootstrap(env)
+        self.assertEqual(code, 143, output)
+        calls = self.assert_bootstrap_download_cleaned()
+        self.assertFalse(any(line.startswith('sudo:') or line.startswith('confirmed:') for line in calls))
+
+    def test_incomplete_piped_script_does_not_start_bootstrap(self):
+        _, env = self.piped_bootstrap_fixture()
+        source = (REPO / 'install.sh').read_text()
+        source = source[:source.rindex('main "$@"')]
+        code, output = self.run_piped_bootstrap(env, script=source)
+        self.assertEqual(code, 0, output)
+        self.assertFalse((self.root / 'calls').exists())
 
     def test_no_database_only_upgrades_or_sudoers_writes(self):
         scripts = '\n'.join(path.read_text() for path in (REPO / 'scripts').glob('*.sh'))
@@ -369,22 +635,32 @@ class InstallerTests(unittest.TestCase):
             mock_command.write_text('#!/bin/sh\nprintf "%s\\n" "$0" >> "$ECO_TEST_LOG"\nexit 91\n')
             mock_command.chmod(0o755)
         env = {**BASE_ENV, 'PATH': f'{bins}:/usr/bin:/bin', 'SUDO_USER': 'target', 'ECO_TEST_LOG': str(calls)}
-        result = subprocess.run(['/bin/bash', str(path), '--ref', 'reviewed-commit'],
+        result = subprocess.run(['/bin/bash', str(path)],
                                 env=env, text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('without sudo', result.stderr)
         self.assertFalse(calls.exists())
         result = subprocess.run(['/bin/bash', str(path), '--help'], env=env, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('Standalone bootstrap:', result.stdout)
+        self.assertIn('curl -fsSL', result.stdout)
         self.assertFalse(calls.exists())
 
-    def test_remote_bootstrap_requires_revision_before_network(self):
+    def test_remote_bootstrap_requires_terminal_before_network(self):
         path = self.root / 'standalone.sh'
         shutil.copy2(REPO / 'install.sh', path)
-        result = subprocess.run(['/bin/bash', str(path)], env=BASE_ENV, text=True, capture_output=True)
+        bins = self.root / 'bin'
+        bins.mkdir()
+        (bins / 'id').write_text('#!/bin/sh\nprintf "1000\\n"\n')
+        (bins / 'id').chmod(0o755)
+        for command in ['git', 'sudo']:
+            mock_command = bins / command
+            mock_command.write_text('#!/bin/sh\nexit 91\n')
+            mock_command.chmod(0o755)
+        result = subprocess.run(['/bin/bash', str(path)],
+                                env={**BASE_ENV, 'PATH': f'{bins}:/usr/bin:/bin'},
+                                start_new_session=True, text=True, capture_output=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('requires --ref', result.stderr)
+        self.assertIn('interactive terminal', result.stderr)
 
     def test_malformed_manifest_stops_before_package_installation(self):
         repo = self.root / 'malformed-repo'

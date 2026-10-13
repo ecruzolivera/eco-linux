@@ -6,6 +6,12 @@ updated: 2026-10-12
 
 # Reproducible Arch setup — implementation record
 
+Historical record of the profile-aware implementation. The installer has since
+been simplified to a no-options `curl … | bash` setup with automatic full user
+provisioning, backup-before-replacement configuration deployment and network
+detection. See [current usage](../README.md#usage); the original choices below
+describe the earlier design, not the current CLI.
+
 ## Goal
 
 Implement phases 1–4 so eco-linux provisions the working niri/DMS desktop, development integrations and selected personal applications on bootable x86_64 Arch without Omarchy repositories.

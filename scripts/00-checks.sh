@@ -17,20 +17,12 @@ for command in sudo pacman getent curl tar git awk grep sed cp find mktemp syste
 done
 curl --fail --silent --show-error --location --max-time 20 --proto '=https' https://archlinux.org/ -o /dev/null || error 'HTTPS connectivity/DNS check failed'
 run_user sudo -v || error 'Target user must have ordinary sudo access for AUR dependencies'
-if [[ $ECO_FIREWALL == enable && -n ${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-} ]]; then
-  error 'Remote SSH installation requires --firewall preserve; review remote-access rules separately'
-fi
+[[ $ECO_FIREWALL != preserve ]] || warn 'SSH session detected: firewall policy will be preserved to avoid locking you out'
 if grep -Eq '^\[omarchy\]' /etc/pacman.conf; then
   error 'Disable the Omarchy repository separately before installing; this installer does not migrate existing repositories'
 fi
 [[ ! -e /etc/sudoers.d/99-eco-nopasswd ]] || error 'Legacy eco sudoers grant found; review/remove it manually before continuing'
 display_manager=$(readlink /etc/systemd/system/display-manager.service || true)
 [[ -z $display_manager || $display_manager == *sddm.service ]] || error 'Switch the existing display manager manually before selecting SDDM'
-if [[ $ECO_NETWORK == networkmanager ]]; then
-  for service in systemd-networkd iwd dhcpcd connman; do
-    if systemctl is-active --quiet "$service" || systemctl is-enabled --quiet "$service"; then
-      error "$service already manages networking; migrate it separately before selecting NetworkManager"
-    fi
-  done
-fi
+ECO_NETWORK=$(select_network)
 info "Target: $REAL_USER ($REAL_HOME); hardware: $ECO_PROFILE; apps: $ECO_APPS"

@@ -4,7 +4,7 @@ Arch Linux customization — Niri + DMS (DankMaterialShell) + your apps.
 
 ## Prerequisites
 
-A bootable **x86_64 Arch Linux** installation, HTTPS connectivity, `sudo`, `curl`,
+A bootable **x86_64 Arch Linux** installation, HTTPS connectivity, Git, `sudo`, `curl`,
 and a normal user who owns their home and has sudo access. Run interactively.
 The base install owns disks, encryption, firmware, kernels, bootloader and backups.
 Disable Omarchy repositories separately; this installer refuses an active
@@ -13,44 +13,46 @@ Disable Omarchy repositories separately; this installer refuses an active
 ## Usage
 
 ```bash
-git clone https://github.com/ecruzolivera/eco-linux.git
-bash /absolute/path/to/eco-linux/install.sh --profile portable
+curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/install.sh | bash
 ```
 
-A local checkout is used directly, even from a different working directory.
-Do not pipe into Bash: the installation needs terminal input for package review
-and ordinary sudo. If bootstrapping without Git, download `install.sh` to a file
-from a reviewed revision and run `bash install.sh --ref <tag-or-40-character-commit>`
-as your normal user, without `sudo`; the installer escalates itself. Elevated
-standalone bootstraps are refused before downloading or provisioning.
-Use a commit hash for immutable selection; a moving ref is not a frozen release.
-No default remote `master` archive is selected and shared temporary directories
-are never erased. Changes in this checkout are **not published** automatically.
+Run as your normal user, **without sudo**. The bootstrap downloads the public
+repository's `master` branch to a private temporary checkout, reports its commit,
+and runs the installer with terminal input restored for sudo and AUR review.
+It removes only its own temporary checkout afterward. This follows the latest
+published setup, not a frozen release; local changes must be pushed before the
+GitHub command can use them.
 
-`bash install.sh --help` lists the options:
+There are no installation choices to configure. It installs the full desktop,
+personal applications, dotfiles, runtimes, editor tools and Herdr integrations.
+Package reviews, confirmations and sudo passwords remain interactive.
 
-- `--apps personal` (default) includes daily applications and extra dev tools;
-  `--apps core` keeps desktop/development/session integrations.
-- `--config preserve` (default) keeps existing shipped files. `--config replace`
-  backs up changed files under `~/.local/state/eco-linux/config-backups/` before
-  replacing them. Extra destination files are never removed; directory symlinks
-  in deployment paths are refused.
-- `--profile ernesto` restores the saved display layout and supported battery
-  charge limits (75–80%). Portable defaults name no display connectors/batteries.
-- `--network preserve` (default) leaves network/DNS services alone.
-  `--network networkmanager` enables NetworkManager for the next boot only if no
-  competing active/enabled network manager is detected. No automatic migration.
-- `--nvidia auto` preserves installed drivers, selects open DKMS only for
-  recognized modern GPUs, and requires manual review for unknown/old GPUs.
-  `--nvidia off` skips graphics changes; `--nvidia open` is an explicit Turing+
-  choice. Matching installed-kernel headers are checked.
-- `--autologin` opts into SDDM autologin. Without it existing autologin/PAM files
-  are preserved, not disabled. No PAM edits or keyring weakening are performed.
-- `--firewall enable` (default) configures inactive UFW and Docker protections;
-  existing active UFW rules are preserved. Remote SSH installation requires
-  `--firewall preserve` and separately reviewed remote-access rules.
-- `--skip-user-setup` skips downloads/bootstrap for runtimes, editor and plugins;
-  completion is explicitly reported as **incomplete**.
+- Changed shipped configuration files are backed up under
+  `~/.local/state/eco-linux/config-backups/` before replacement. Unrelated and
+  legacy files are retained; destination directory symlinks are refused.
+- Display settings use portable defaults, without hard-coded monitor connectors
+  or battery thresholds.
+- Active/enabled network managers and DNS settings are preserved. When no known
+  manager is detected, NetworkManager is enabled for the next boot without
+  disrupting current connectivity.
+- Installed NVIDIA drivers are preserved. Recognized modern GPUs get open DKMS
+  drivers and matching kernel headers; unknown/old GPUs are left unchanged with
+  a warning to configure a suitable driver manually.
+- SDDM automatically logs the target user into Niri. Changed autologin configuration
+  is backed up alongside `/etc/sddm.conf.d/autologin.conf`. PAM is unchanged;
+  encrypted login keyrings may still require a password to unlock.
+- Local installs configure inactive UFW and Docker protections while preserving
+  existing active UFW rules. SSH installs leave the firewall untouched to avoid
+  locking you out; review remote-access rules separately.
+
+For a checkout you have already cloned or reviewed:
+
+```bash
+bash /path/to/eco-linux/install.sh
+```
+
+Local checkouts are used directly, even from another working directory.
+`bash install.sh --help` displays the short usage instructions.
 
 On an existing system, review conflicts and take independent backups first.
 The installer performs a full `pacman -Syu`; usual package hooks can update
@@ -74,7 +76,7 @@ the portable profile; never register an ext4 home as Btrfs.
 | **Gaming**       | steam, qbittorrent                                                                                              |
 | **Network**      | NetworkManager, iwd, wl-clipboard, wiremix, socat                                                               |
 | **Security**     | UFW (default-deny on new setups), gnome-keyring, fprintd; existing DNS configuration preserved                 |
-| **System**       | SDDM (autologin opt-in), pipewire/wireplumber, power-profiles-daemon, cups, brightnessctl, playerctl, bluetui    |
+| **System**       | SDDM (Niri autologin), pipewire/wireplumber, power-profiles-daemon, cups, brightnessctl, playerctl, bluetui       |
 | **Fonts**        | Noto (full/CJK/emoji), FiraCode Nerd, JetBrains Mono Nerd, Font Awesome                                         |
 | **Theming**      | adwaita-cursors, gnome-themes-extra, yaru-icon-theme, qt6ct, matugen                                            |
 | **Personal apps** | Chrome, Claude Desktop, Slack, VS Code, Android Studio, Postman, pgAdmin, T3 Code, OpenCode Desktop, MEGAsync |
@@ -97,15 +99,15 @@ Configs are organized into payload directories:
 | `home-root-config/` | `~/`                   | Home dotfiles and shared agent skills in `.agents/skills/`                                                        |
 | `local-bin/`        | `~/.local/bin/`        | `eco-tmux-sessionizer`, `eco-herdr-sessionizer`, shared launcher library, Worktrunk/screenshot/recording helpers |
 | `local-share/`      | `~/.local/share/`      | Checksum-guarded Herdr/OpenCode patch assets and Herdr zsh completions                                              |
-| `system-config/`    | Selected `/etc/` files | Opt-in SDDM autologin and battery unit; old environment/session assets are retained but not applied             |
-| `profiles/ernesto/` | Selected `~/.config/` files | Original personal monitor/workspace/DMS display settings, only when requested                              |
+| `system-config/`    | Selected `/etc/` files | SDDM autologin template; original NVIDIA and battery settings retained as reference assets                      |
+| `profiles/ernesto/` | Reference assets      | Original personal monitor/workspace/DMS display settings; not applied by the automatic setup                    |
 
 ## NVIDIA
 
 Existing installed drivers are preserved. Known Turing+ NVIDIA GPUs use
 `nvidia-open-dkms`, matching kernel headers, `nvidia-utils`, `nvidia-settings` and
-`egl-wayland`. Ambiguous/older hardware requires manual selection; auto mode does
-not guess a legacy driver. No global GPU-routing environment variables are
+`egl-wayland`. Ambiguous/older hardware is skipped with a warning to configure
+a suitable driver manually. No global GPU-routing environment variables are
 written and no explicit boot/initramfs changes are made. Physical GPU and resume
 testing remains necessary. This installer is not a driver migration tool.
 
@@ -190,12 +192,12 @@ Installer hardening additionally guards optional autostarts, uses an explicit
 shell argv for lid-close commands, avoids a duplicate polkit agent, and guards
 the optional Rust environment in Bash. The PWA menu helper is included with
 collision-free keys. Existing personal display preferences remain in the
-optional hardware profile; none of these changes were applied to the live home.
+saved hardware reference; none of these changes were applied to the live home.
 
 Current personal preferences, project-specific Worktrunk rules, models, providers
-and permissions are retained. Monitor settings are preserved in the optional
-`ernesto` profile rather than imposed on portable installs. The global agent rule
-for new repositories (`master`, without renaming existing branches) is included.
+and permissions are retained. Monitor settings are preserved in
+`profiles/ernesto/` as a reference rather than imposed on fresh installs. The global
+agent rule for new repositories (`master`, without renaming existing branches) is included.
 Herdr patch metadata contains
 historical source-machine paths as provenance, not installation destinations.
 
@@ -210,8 +212,8 @@ explicitly restores `cli.json` to `0600` and the shipped Yazi plugin files to
 `0444`. Deployment and user bootstrap run as the target user; existing home
 ownership is never recursively rewritten.
 
-Copying is an **overlay**, not a home-directory reset. Existing files are preserved
-by default; explicit replacements get private backups. Extra destination files are
+Copying is an **overlay**, not a home-directory reset. Changed shipped files get
+private backups before replacement. Extra destination files are
 always preserved. Existing legacy `opencode.json`, `.zshenv`, and old OpenCode skill
 directories produce warnings and are not deleted automatically. Review them
 before using the new configuration: an old config can still influence settings,
@@ -245,7 +247,8 @@ are confirmed interactively and verified after install; declining them does not
 produce false success. Already-reviewed revisions are retained on reruns;
 unfamiliar installations or local modifications are refused rather than erased.
 
-To finish after `--skip-user-setup`, run as the normal user:
+To retry a failed user-bootstrap stage from a retained local checkout, run as the
+normal user:
 
 ```bash
 ECO_APPS=personal bash /absolute/path/to/eco-linux/lib/user-setup.sh /absolute/path/to/eco-linux
