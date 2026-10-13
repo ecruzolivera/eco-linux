@@ -12,4 +12,4 @@ source ~/.profile
 # alias p='python'
 
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init bash)"; fi
-. "$HOME/.cargo/env"
+[[ ! -f "$HOME/.cargo/env" ]] || . "$HOME/.cargo/env"

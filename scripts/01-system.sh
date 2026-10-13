@@ -1,19 +1,7 @@
-phase "System Preparation"
-
-info "Updating package databases..."
-pacman -Sy --noconfirm
-
-if ! grep -q '^\[multilib\]' /etc/pacman.conf; then
-  info "Enabling multilib repository..."
-  echo -e "\n[multilib]\nInclude = /etc/pacman.d/mirrorlist" >>/etc/pacman.conf
-  pacman -Sy --noconfirm
+phase 'System preparation'
+if ! grep -Eq '^\[multilib\]' /etc/pacman.conf; then
+  cp -p /etc/pacman.conf "/etc/pacman.conf.eco-$(date +%Y%m%d-%H%M%S)"
+  printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
 fi
-info "Multilib enabled"
-
-info "Installing base-devel and git..."
-pacman -S --noconfirm --needed base-devel git
-
-if [ ! -d "$REAL_HOME/.config" ]; then
-  mkdir -p "$REAL_HOME/.config"
-  chown -R "$REAL_USER":"$REAL_USER" "$REAL_HOME/.config"
-fi
+info 'Performing a full official-repository upgrade and installing bootstrap tools'
+pacman -Syu --needed base-devel git curl python sudo

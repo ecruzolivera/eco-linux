@@ -65,6 +65,47 @@ def jsonc(text):
     return json.loads(text)
 
 
+def verify_dms_plugins(directory):
+    settings = json.loads((directory / "settings.json").read_text())
+    enabled = json.loads((directory / "plugin_settings.json").read_text())
+    bar_widgets = []
+    for bar in settings["barConfigs"]:
+        if not bar.get("enabled", True):
+            continue
+        for section in ["leftWidgets", "centerWidgets", "rightWidgets"]:
+            for widget in bar.get(section, []):
+                if isinstance(widget, str):
+                    bar_widgets.append(widget)
+                elif widget.get("enabled", True):
+                    bar_widgets.append(widget["id"])
+    for name, plugin_id, plugin_type in [
+        ("recording-indicator", "recordingIndicator", "widget"),
+        ("herdr-agents", "herdrAgents", "composite"),
+    ]:
+        plugin_directory = directory / "plugins" / name
+        manifest = json.loads((plugin_directory / "plugin.json").read_text())
+        require(manifest["id"] == plugin_id and manifest["type"] == plugin_type,
+                f"Unexpected DMS plugin declaration: {name}")
+        require(enabled.get(plugin_id, {}).get("enabled") is True,
+                f"Custom DMS plugin is not enabled: {plugin_id}")
+        require(plugin_id in bar_widgets, f"Custom DMS plugin is missing from the enabled bar: {plugin_id}")
+        require("dankbar-widget" in manifest["capabilities"], f"Missing bar capability: {plugin_id}")
+        if plugin_type == "composite":
+            components = manifest["components"]
+            require(set(components) == {"daemon", "widget"}, f"Unexpected Herdr plugin surfaces: {components}")
+            require("daemon" in manifest["capabilities"], "Herdr plugin has no shared daemon capability")
+            entrypoints = list(components.values())
+            require((plugin_directory / "AgentState.js").is_file(), "Missing Herdr agent state logic")
+            require((plugin_directory / "HerdrProtocol.js").is_file(), "Missing Herdr socket protocol logic")
+            require(not (plugin_directory / "HerdrTooltip.qml").exists(), "Retired Herdr tooltip reappeared")
+        else:
+            entrypoints = [manifest["component"]]
+        for entrypoint in entrypoints:
+            target = (plugin_directory / entrypoint).resolve()
+            require(target.is_relative_to(plugin_directory.resolve()) and target.is_file(),
+                    f"Missing or escaping DMS plugin entrypoint: {plugin_id}/{entrypoint}")
+
+
 def validate_payloads():
     require(jsonc('{"url":"https://example.test/",/* comment */"text":",}",}') ==
             {"url": "https://example.test/", "text": ",}"}, "JSONC parser mishandles strings")
@@ -92,10 +133,15 @@ def validate_payloads():
             if group == "xdg-config" and path.suffix in {".json", ".jsonc", ".toml"}:
                 jsonc(text) if path.suffix != ".toml" else tomllib.loads(text)
                 config_count += 1
-            if path.suffix in {".js", ".mjs"} and shutil.which("node"):
+            if path.suffix in {".js", ".mjs", ".cjs"} and shutil.which("node"):
                 run(["node", "--check", str(path)])
-    for path in [REPO / "install.sh", *files(REPO / "scripts"), *files(REPO / "local-bin")]:
+    for path in [REPO / "install.sh", *files(REPO / "scripts"), *files(REPO / "local-bin"),
+                 *(REPO / "lib").glob("*.sh")]:
         run(["bash", "-n", str(path)])
+    for path in [*(REPO / "lib").glob("*.py"), *(REPO / "tests").glob("*.py")]:
+        compile(path.read_text(), str(path), "exec")
+    for path in (REPO / "packages").glob("*.toml"):
+        tomllib.loads(path.read_text())
     for name in [".bashrc", ".profile"]:
         run(["bash", "-n", str(REPO / "home-root-config" / name)])
     if shutil.which("zsh"):
@@ -112,9 +158,18 @@ def validate_payloads():
             "Launcher regressed to fixed-port discovery")
     worktrunk = tomllib.loads((REPO / "xdg-config/worktrunk/config.toml").read_text())
     require("post-remove" in worktrunk and "pre-remove" not in worktrunk, "Worktrunk remove hook regressed")
-    packages = (REPO / "scripts/03-packages.sh").read_text()
+    packages = "\n".join(path.read_text() for path in (REPO / "packages").iterdir()
+                         if path.suffix in {".official", ".aur", ".lock"})
     for name in ["opencode-beta", "herdr-bin", "kitty", "slurp", "libnotify", "python", "procps-ng", "util-linux"]:
-        require(re.search(rf"^\s+{re.escape(name)}\s*$", packages, re.MULTILINE), f"Missing package: {name}")
+        require(re.search(rf"^{re.escape(name)}(?:\s|$)", packages, re.MULTILINE), f"Missing package: {name}")
+    run(["python3", str(REPO / "tests/package-coverage.py")])
+    verify_dms_plugins(REPO / "xdg-config/DankMaterialShell")
+    if shutil.which("node"):
+        plugin_tests = REPO / "xdg-config/DankMaterialShell/plugins/herdr-agents/tests"
+        run(["node", "--test", str(plugin_tests / "agent-state.test.cjs"), str(plugin_tests / "herdr-protocol.test.cjs")])
+        print("PASS: Custom DMS plugin declarations, enablement, bar entries and Herdr state/protocol tests.")
+    else:
+        print("PASS: Custom DMS plugin declarations, enablement and bar entries; SKIP Herdr state/protocol tests (node is not installed).")
     print(f"PASS: {config_count} configuration documents, shell/JS syntax, exclusions, secrets and integration declarations.")
 
 
@@ -159,6 +214,7 @@ def verify_copied(home, payload_repo=REPO):
     for path in files(home / ".config"):
         if path.suffix in {".json", ".jsonc", ".toml"}:
             jsonc(path.read_text()) if path.suffix != ".toml" else tomllib.loads(path.read_text())
+    verify_dms_plugins(home / ".config/DankMaterialShell")
     niri = home / ".config/niri/config.kdl"
     for optional, include in re.findall(r'^include\s+(optional=true\s+)?"([^"]+)"', niri.read_text(), re.MULTILINE):
         require(optional or (niri.parent / include).is_file(), f"Missing required Niri include: {include}")
@@ -228,6 +284,11 @@ def main():
                               "XDG_CONFIG_HOME": str(home / ".config"), "XDG_DATA_HOME": str(home / ".local/share"),
                               "XDG_STATE_HOME": str(home / ".local/state"), "XDG_CACHE_HOME": str(home / ".cache")}, timeout=30)
             print((result.stdout + result.stderr).strip())
+            result = run(["nvim", "--headless", "-u", "NONE", "-i", "NONE", "-l", str(REPO / "tests/verify-nvim-bootstrap.lua")],
+                         env={**os.environ, "HOME": str(home), "ECO_REPO": str(REPO),
+                              "XDG_CONFIG_HOME": str(home / ".config"), "XDG_DATA_HOME": str(home / ".local/share"),
+                              "XDG_STATE_HOME": str(home / ".local/state"), "XDG_CACHE_HOME": str(home / ".cache")}, timeout=30)
+            print((result.stdout + result.stderr).strip())
         else:
             print("SKIP: Neovim/Lua checks (nvim is not installed).")
         for label in ["normal-home", "home with spaces & pipe|test"]:
@@ -243,7 +304,7 @@ def main():
         # Simulate a Git checkout: only executable/non-executable file modes
         # survive cloning. Private and read-only modes must come from the module.
         release = root / "release-payload"
-        for group in [*PAYLOADS, "scripts"]:
+        for group in [*PAYLOADS, "scripts", "lib", "profiles"]:
             shutil.copytree(REPO / group, release / group)
             for path in files(release / group):
                 if not path.is_symlink():

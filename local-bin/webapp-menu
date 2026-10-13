@@ -1,0 +1,51 @@
+#!/bin/bash
+# Discover the user's installed PWAs; no application entries or account data ship.
+set -euo pipefail
+APP_DIR="$HOME/.local/share/applications"
+files=()
+while IFS= read -r file; do files+=("$file"); done < <(grep -l -- '--app-id=' "$APP_DIR"/*.desktop 2>/dev/null || true)
+if ((${#files[@]} == 0)); then
+  printf 'No web apps installed. Install a site as an app from your browser.\n'
+  read -rsn1 -p '[press any key to close]' _
+  exit 0
+fi
+names=() sorted_files=()
+while IFS=$'\t' read -r name file; do names+=("$name"); sorted_files+=("$file"); done < <(
+  for file in "${files[@]}"; do
+    name=$(awk -F= '/^Name=/{print $2; exit}' "$file")
+    printf '%s\t%s\n' "$name" "$file"
+  done | sort -f -k1,1
+)
+# Assignment happens in the caller, not a command-substitution subshell: key
+# ownership must persist for duplicate initials. Reserve q for quitting.
+used=q
+declare -A keymap
+for i in "${!names[@]}"; do
+  lower=${names[$i],,}
+  key=
+  for ((j=0; j<${#lower}; j++)); do
+    candidate=${lower:j:1}
+    [[ $candidate == [a-z] && $used != *"$candidate"* ]] || continue
+    key=$candidate
+    break
+  done
+  if [[ -z $key ]]; then
+    for candidate in {a..z}; do
+      [[ $used != *"$candidate"* ]] || continue
+      key=$candidate
+      break
+    done
+  fi
+  [[ -n $key ]] || { printf 'Too many web apps; extra entries omitted.\n'; break; }
+  used+=$key
+  keymap[$key]=${sorted_files[$i]}
+  printf '%s) %s\n' "$key" "${names[$i]}"
+done
+printf 'q) quit\n> '
+IFS= read -rsn1 key
+case $key in q|Q|$'\e') exit 0;; esac
+file=${keymap[$key]:-}
+[[ -n $file ]] || exit 0
+# gtk-launch resolves application IDs, not absolute paths; basename keeps
+# failures (missing/renamed entry) visible instead of silently invoking gtk-launch.
+gtk-launch "${file##*/}" &

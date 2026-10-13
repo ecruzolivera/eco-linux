@@ -1,29 +1,19 @@
-phase "Final Setup"
-
-info "Make $REAL_USER owner of $REAL_HOME ..."
-chown -vR "$REAL_USER":"$REAL_USER" "$REAL_HOME/.config" "$REAL_HOME/.local/bin"
-# New payload roots are deliberately narrower than all of ~/.local/share.
-chown -vR "$REAL_USER":"$REAL_USER" "$REAL_HOME/.agents" \
-  "$REAL_HOME/.local/share/herdr-opencode-fix" \
-  "$REAL_HOME/.local/share/zsh/site-functions"
-find "$REAL_HOME" -maxdepth 1 -type f -exec chown -v "$REAL_USER":"$REAL_USER" {} +
-
-info "Enabling SDDM..."
+phase 'Final checks and service enablement'
+# Copy/setup already ran as the target user; no recursive ownership changes.
+display_manager=$(readlink /etc/systemd/system/display-manager.service || true)
+if [[ -n $display_manager && $display_manager != *sddm.service ]]; then
+  error "Existing display manager $display_manager preserved; switch it manually before enabling SDDM"
+fi
 systemctl enable sddm
-
-info "Enabling PipeWire user services..."
-systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service
-
-info "Enabling DMS shell user service..."
-systemctl --global enable dms.service
-
-info "Adding $REAL_USER to relevant groups..."
-usermod -aG audio,video,input "$REAL_USER" 2>/dev/null || true
-
-info "Removing temporary passwordless pacman..."
-rm -vf /etc/sudoers.d/99-eco-nopasswd
-
-info ""
-echo -e "${GREEN}eco-linux installation complete!${NC}"
-
-info "Reboot when ready: sudo systemctl reboot"
+systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service dms.service
+systemctl enable power-profiles-daemon
+run_user env "ECO_APPS=$ECO_APPS" python3 "$INSTALLER_DIR/tests/package-coverage.py" --profile "$ECO_APPS" --packages
+if [[ $ECO_SKIP_USER_SETUP == 1 ]]; then
+  warn 'Provisioning finished, but user bootstrap was skipped. Run lib/user-setup.sh as your user to complete it.'
+else
+  info 'Provisioning and user-level checks completed'
+fi
+info 'No disk, encryption, bootloader or snapshot configuration was performed; accounts remain separate'
+warn 'Normal package-upgrade hooks may regenerate existing kernel/initramfs/boot files'
+warn 'Clean-Arch VM and real GPU/suspend validation remain deferred; reproducibility is not yet proven'
+info 'Reboot when ready; restore accounts, personal files and licensed applications separately'

@@ -1,0 +1,16 @@
+{
+    "id": "herdrAgents",
+    "name": "Herdr Agents",
+    "description": "A single robot icon summarizing your local Herdr agents",
+    "version": "1.1.0",
+    "author": "eco-linux",
+    "icon": "smart_toy",
+    "type": "composite",
+    "capabilities": ["daemon", "dankbar-widget"],
+    "components": {
+        "daemon": "./HerdrMonitor.qml",
+        "widget": "./HerdrWidget.qml"
+    },
+    "permissions": ["process"],
+    "requires_dms": ">=1.6.0"
+}

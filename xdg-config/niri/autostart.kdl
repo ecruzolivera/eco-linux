@@ -2,10 +2,9 @@
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Miscellaneous#spawn-sh-at-startup
 
 
-spawn-sh-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+// DMS supplies the authentication agent; do not launch a duplicate.
 spawn-at-startup  "brave"
 spawn-sh-at-startup  "$TERMINAL"
-spawn-sh-at-startup "sleep 5 && megasync"
+spawn-sh-at-startup "sleep 5 && command -v megasync >/dev/null && megasync"
 spawn-sh-at-startup "sleep 6 && bitwarden-desktop"
-spawn-sh-at-startup "sleep 8 && slack"
-
+spawn-sh-at-startup "sleep 8 && command -v slack >/dev/null && slack"

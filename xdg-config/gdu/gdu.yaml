@@ -1,0 +1,19 @@
+# Static Dank palette matching Ghostty's dankcolors theme.
+# Only appearance is customized; scanning and deletion behavior stay unchanged.
+style:
+  selected-row:
+    text-color: "#e6e0e9"
+    background-color: "#4f378b"
+  marked:
+    text-color: "#141218"
+    background-color: "#d0bcff"
+  header:
+    text-color: "#e6e0e9"
+    background-color: "#434149"
+  footer:
+    text-color: "#e6e0e9"
+    background-color: "#434149"
+    number-color: "#ffda72"
+  result-row:
+    directory-color: "#bca5f2"
+    number-color: "#7fff9a"

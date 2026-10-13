@@ -4,6 +4,7 @@ for _, directory in ipairs({ "nvim", "yazi" }) do
     assert(loadfile(path), "Lua syntax error: " .. path)
   end
 end
+assert(loadfile(root .. "/lib/bootstrap-nvim.lua"), "User bootstrap Lua syntax error")
 
 local spec = dofile(root .. "/xdg-config/nvim/lua/plugins/opencode.lua")
 assert(spec.version == false and spec.branch == "main")

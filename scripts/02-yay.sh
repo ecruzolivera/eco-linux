@@ -1,22 +1,23 @@
-phase "AUR Helper (yay)"
-
-if command -v yay &>/dev/null; then
-  info "yay already installed, skipping"
+phase 'AUR helper'
+if command -v yay >/dev/null; then
+  info 'yay already installed'
   return
 fi
-
-YAY_DIR="/tmp/yay-bin"
-rm -rf "$YAY_DIR"
-
-info "Cloning yay-bin..."
-sudo -u "$REAL_USER" git clone --depth 1 https://aur.archlinux.org/yay-bin.git "$YAY_DIR"
-
-info "Building yay..."
-cd "$YAY_DIR"
-sudo -u "$REAL_USER" makepkg --noconfirm
-
-info "Installing yay..."
-pacman -U --noconfirm yay-bin-*.pkg.tar.zst
-
-cd /tmp
-info "yay installed successfully"
+# Subshell scopes both cwd and cleanup; never remove a shared /tmp/yay-bin.
+(
+  parent=/tmp
+  [[ ! -d /tmp/opencode ]] || parent=/tmp/opencode
+  build=$(mktemp -d "$parent/eco-yay.XXXXXXXX")
+  trap 'rm -rf -- "$build"' EXIT
+  chown "$REAL_UID:$REAL_GID" "$build"
+  run_user git clone https://aur.archlinux.org/yay-bin.git "$build/source"
+  info 'Review yay-bin before executing its PKGBUILD'
+  cat "$build/source/PKGBUILD"
+  read -r -p 'Build this recipe? [y/N] ' answer
+  [[ $answer == y || $answer == Y ]] || error 'yay build declined'
+  cd "$build/source"
+  run_user makepkg --syncdeps --cleanbuild
+  mapfile -t artifacts < <(run_user makepkg --packagelist)
+  ((${#artifacts[@]})) || error 'No yay artifacts produced'
+  pacman -U --needed "${artifacts[@]}"
+)

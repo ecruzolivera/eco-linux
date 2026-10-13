@@ -1,6 +1,6 @@
 [tools]
 go = "latest"
-java = "26"
+java = "temurin-21"
 node = "lts"
 bun = "latest"
 

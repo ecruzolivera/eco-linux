@@ -1,181 +1,40 @@
-phase "Packages"
-
-PACKAGES=(
-  gdu
-  satty
-  pandoc-cli
-  qt6ct
-  qt5ct
-  adw-gtk-theme
-  adwaita-cursors
-  alacritty
-  atool
-  bat
-  bitwarden
-  bluetui
-  bottom
-  brightnessctl
-  cava
-  chezmoi
-  chromium
-  clang
-  cliphist
-  cups
-  cups-browsed
-  cups-filters
-  cups-pdf
-  cups-pk-helper
-  dgop
-  diff-so-fancy
-  dms-shell-niri
-  docker-compose
-  dosfstools
-  evince
-  exfatprogs
-  eza
-  fastfetch
-  fd
-  ffmpegthumbnailer
-  firefox-developer-edition
-  font-manager
-  fontconfig
-  fprintd
-  fuse2
-  fzf
-  gdb
-  ghostty
-  ghostty-nautilus
-  gimp
-  git-lfs
-  github-cli
-  glab
-  gnome-boxes
-  gnome-calculator
-  gnome-characters
-  gnome-disk-utility
-  gnome-keyring
-  gnome-themes-extra
-  gparted
-  grim
-  gvfs-mtp
-  gvfs-nfs
-  gvfs-smb
-  hunspell-es_any
-  i2c-tools
-  imagemagick
-  imath
-  impala
-  imv
-  inetutils
-  inxi
-  iwd
-  jq
-  just
-  jxrlib
-  karchive
-  kimageformats
-  kitty
-  lazygit
-  less
-  libavif
-  libayatana-appindicator
-  libheif
-  libjxl
-  libnotify
-  libqalculate
-  libraw
-  libreoffice-fresh
-  libsecret
-  libyaml
-  lldb
-  llvm
-  lshw
-  luarocks
-  man-db
-  mariadb-libs
-  matugen
-  mise
-  mpv
-  nano
-  nautilus
-  nautilus-python
-  neovim
-  networkmanager
-  noto-fonts
-  noto-fonts-cjk
-  noto-fonts-emoji
-  nss-mdns
-  nvim
-  obsidian
-  openexr
-  openjpeg2
-  pipewire
-  pipewire-alsa
-  pipewire-pulse
-  playerctl
-  postgresql-libs
-  power-profiles-daemon
-  procps-ng
-  python
-  python-gobject
-  qbittorrent
-  qt5-wayland
-  qt6-multimedia
-  qt6ct
-  ripgrep
-  ruby
-  satty
-  sddm
-  socat
-  slurp
-  steam
-  system-config-printer
-  systemd
-  tesseract
-  tesseract-data-eng
-  tldr
-  tmux
-  tree-sitter-cli
-  ttf-firacode-nerd
-  ttf-jetbrains-mono-nerd
-  unzip
-  util-linux
-  wf-recorder
-  whois
-  wiremix
-  wireplumber
-  wl-clipboard
-  woff2-font-awesome
-  xdg-desktop-portal
-  xdg-desktop-portal-gnome
-  xdg-desktop-portal-gtk
-  xmlstarlet
-  xwayland-satellite
-  yazi
-  zoxide
-)
-
-AUR_PKS=(
-  brave-bin
-  herdr-bin
-  limine-snapper-sync
-  localsend-bin
-  megasync-bin
-  opencode-beta
-  riskie-bin
-  roll
-  worktrunk-bin
-)
-
-info "Installing ${#PACKAGES[@]} packages..."
-pacman -S --noconfirm --needed "${PACKAGES[@]}"
-info "Official packages installed"
-
-info "Installing ${#AUR_PKS[@]} packages..."
-info "Granting temporary passwordless pacman for AUR build..."
-echo "$REAL_USER ALL=(ALL) NOPASSWD: /usr/bin/pacman" >/etc/sudoers.d/99-eco-nopasswd
-chmod 0440 /etc/sudoers.d/99-eco-nopasswd
-
-sudo -u "$REAL_USER" yay -S --noconfirm --needed "${AUR_PKS[@]}"
-
-info "AUR packages installed"
+phase 'Application manifests'
+package_lines=$(read_manifest "$INSTALLER_DIR/packages/core.official")
+mapfile -t PACKAGES <<< "$package_lines"
+package_lines=$(read_manifest "$INSTALLER_DIR/packages/core.aur")
+mapfile -t AUR_PACKAGES <<< "$package_lines"
+if [[ $ECO_APPS == personal ]]; then
+  package_lines=$(read_manifest "$INSTALLER_DIR/packages/personal.official")
+  mapfile -t PERSONAL <<< "$package_lines"
+  PACKAGES+=("${PERSONAL[@]}")
+  package_lines=$(read_manifest "$INSTALLER_DIR/packages/personal.aur")
+  mapfile -t PERSONAL <<< "$package_lines"
+  AUR_PACKAGES+=("${PERSONAL[@]}")
+fi
+pacman -S --needed "${PACKAGES[@]}"
+install_aur "${AUR_PACKAGES[@]}"
+# Only this compatibility-sensitive pair is pinned. Other apps track current Arch/AUR.
+# The manifest is read from fd 3 so the confirmation/sudo prompts keep the terminal on stdin.
+while read -r name revision version <&3; do
+  [[ -n $name && $name != \#* ]] || continue
+  installed=$(pacman -Q "$name" 2>/dev/null || true)
+  if [[ $installed == "$name $version" ]]; then continue; fi
+  (
+    parent=/tmp
+    [[ ! -d /tmp/opencode ]] || parent=/tmp/opencode
+    build=$(mktemp -d "$parent/eco-aur.XXXXXXXX")
+    trap 'rm -rf -- "$build"' EXIT
+    chown "$REAL_UID:$REAL_GID" "$build"
+    run_user git clone "https://aur.archlinux.org/$name.git" "$build/source"
+    cd "$build/source"
+    run_user git checkout --detach "$revision"
+    cat PKGBUILD
+    read -r -p "Build reviewed $name $version recipe? [y/N] " answer
+    [[ $answer == y || $answer == Y ]] || error 'Pinned integration package declined'
+    run_user makepkg --syncdeps --cleanbuild
+    mapfile -t artifacts < <(run_user makepkg --packagelist)
+    ((${#artifacts[@]})) || error 'No pinned package artifacts produced'
+    pacman -U --needed "${artifacts[@]}"
+  )
+  [[ $(pacman -Q "$name") == "$name $version" ]] || error "Expected $name $version"
+done 3< "$INSTALLER_DIR/packages/integrations.lock"

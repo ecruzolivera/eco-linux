@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "configurations": [
+    {
+      "id": "profile_1779676304528_xy5k0u",
+      "name": "Desktop Mode",
+      "outputs": {
+        "eDP-1": {
+          "mode": "1920x1080@60.003",
+          "position": {
+            "x": 0,
+            "y": 360
+          },
+          "scale": 1.5,
+          "transform": "Normal",
+          "vrr": false,
+          "disabled": false,
+          "niri": {}
+        },
+        "HDMI-A-1": {
+          "mode": "3840x2160@30.000",
+          "position": {
+            "x": 1280,
+            "y": 0
+          },
+          "scale": 2,
+          "transform": "Normal",
+          "vrr": false,
+          "disabled": false,
+          "niri": {}
+        }
+      }
+    }
+  ]
+}

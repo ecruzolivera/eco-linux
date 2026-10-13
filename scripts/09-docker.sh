@@ -1,37 +1,27 @@
-phase "Docker"
-
-sudo -u "$REAL_USER" yay -S --noconfirm --needed docker docker-buildx docker-compose ufw-docker lazydocker
-
-# Configure Docker daemon:
-# - limit log size to avoid running out of disk
-# - use host's DNS resolver
-sudo mkdir -p /etc/docker
-sudo tee /etc/docker/daemon.json >/dev/null <<'EOF'
+phase 'Networking and Docker'
+if [[ $ECO_NETWORK == networkmanager ]]; then
+  for service in systemd-networkd iwd dhcpcd connman; do
+    if systemctl is-active --quiet "$service" || systemctl is-enabled --quiet "$service"; then
+      error "$service already manages networking; migrate it manually before choosing NetworkManager"
+    fi
+  done
+  systemctl enable NetworkManager
+else
+  info 'Existing network/DNS services and resolv.conf preserved'
+fi
+mkdir -p /etc/docker
+if [[ -e /etc/docker/daemon.json ]]; then
+  info 'Existing Docker daemon configuration preserved'
+else
+  # Docker chooses its standard network and upstream DNS; no host stub listener,
+  # hard-coded subnet or machine-specific systemd-resolved dependency.
+  cat > /etc/docker/daemon.json <<'EOF'
 {
-    "log-driver": "json-file",
-    "log-opts": { "max-size": "10m", "max-file": "5" },
-    "dns": ["172.17.0.1"],
-    "bip": "172.17.0.1/16"
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "5" }
 }
 EOF
-
-# Expose systemd-resolved to our Docker network
-sudo mkdir -p /etc/systemd/resolved.conf.d
-echo -e '[Resolve]\nDNSStubListenerExtra=172.17.0.1' | sudo tee /etc/systemd/resolved.conf.d/20-docker-dns.conf >/dev/null
-sudo systemctl restart systemd-resolved
-
-# Start Docker on-demand
-sudo systemctl enable docker.socket
-
-# Give this user privileged Docker access
-sudo usermod -aG docker "${REAL_USER}"
-
-# Prevent Docker from preventing boot for network-online.target
-sudo mkdir -p /etc/systemd/system/docker.service.d
-sudo tee /etc/systemd/system/docker.service.d/no-block-boot.conf <<'EOF'
-[Unit]
-DefaultDependencies=no
-EOF
-
-sudo systemctl daemon-reload
-info "firewall config completed"
+fi
+systemctl enable docker.socket
+usermod -aG docker "$REAL_USER"
+warn 'Docker group membership grants root-equivalent access; effective after a fresh login'

@@ -1,30 +1,36 @@
-phase "Pre-flight Checks"
-
-if [ ! -f /etc/arch-release ]; then
-  error "This script is for Arch Linux only"
+phase 'Preflight checks'
+[[ -f /etc/arch-release ]] || error 'Arch Linux is required'
+[[ $(uname -m) == x86_64 ]] || error 'Only x86_64 Arch is supported'
+[[ $(id -u) == 0 && -n ${SUDO_USER:-} && $SUDO_USER != root ]] || error 'Run from a sudo-capable normal user, not a root login'
+REAL_USER=$SUDO_USER
+[[ $REAL_USER =~ ^[a-zA-Z_][a-zA-Z0-9_-]*\$?$ ]] || error 'Unsupported target account name'
+account=$(getent passwd "$REAL_USER") || error 'Target account not found'
+IFS=: read -r _ _ REAL_UID REAL_GID _ REAL_HOME _ <<< "$account"
+[[ $REAL_UID != 0 && $REAL_HOME == /* && -d $REAL_HOME ]] || error 'Invalid target user/home'
+[[ $(stat -c %u "$REAL_HOME") == "$REAL_UID" ]] || error 'Target user must own their home directory'
+USER_CONFIG=$REAL_HOME/.config
+[[ -t 0 && -t 1 ]] || error 'Use an interactive terminal (AUR review/sudo requires it)'
+for command in sudo pacman getent curl tar git awk grep sed cp find mktemp systemctl; do
+  # git is installed in phase 01; it is not a prerequisite on minimal Arch.
+  [[ $command != git ]] || continue
+  command -v "$command" >/dev/null || error "Missing bootstrap command: $command"
+done
+curl --fail --silent --show-error --location --max-time 20 --proto '=https' https://archlinux.org/ -o /dev/null || error 'HTTPS connectivity/DNS check failed'
+run_user sudo -v || error 'Target user must have ordinary sudo access for AUR dependencies'
+if [[ $ECO_FIREWALL == enable && -n ${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-} ]]; then
+  error 'Remote SSH installation requires --firewall preserve; review remote-access rules separately'
 fi
-info "Arch Linux detected"
-
-if [ "$(id -u)" -ne 0 ]; then
-  error "Must run as root"
+if grep -Eq '^\[omarchy\]' /etc/pacman.conf; then
+  error 'Disable the Omarchy repository separately before installing; this installer does not migrate existing repositories'
 fi
-info "Running as root"
-
-REAL_USER="${SUDO_USER:-}"
-if [ -z "$REAL_USER" ]; then
-  error "Could not detect the non-root user. Run with sudo."
+[[ ! -e /etc/sudoers.d/99-eco-nopasswd ]] || error 'Legacy eco sudoers grant found; review/remove it manually before continuing'
+display_manager=$(readlink /etc/systemd/system/display-manager.service || true)
+[[ -z $display_manager || $display_manager == *sddm.service ]] || error 'Switch the existing display manager manually before selecting SDDM'
+if [[ $ECO_NETWORK == networkmanager ]]; then
+  for service in systemd-networkd iwd dhcpcd connman; do
+    if systemctl is-active --quiet "$service" || systemctl is-enabled --quiet "$service"; then
+      error "$service already manages networking; migrate it separately before selecting NetworkManager"
+    fi
+  done
 fi
-
-REAL_HOME=$(eval echo "~$REAL_USER")
-if [ ! -d "$REAL_HOME" ]; then
-  error "Home directory for $REAL_USER not found"
-fi
-USER_CONFIG="$REAL_HOME/.config"
-info "Target user: $REAL_USER"
-info "Target home: $REAL_HOME"
-info "Target config: $USER_CONFIG"
-
-if ! ping -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
-  error "No internet connection"
-fi
-info "Internet OK"
+info "Target: $REAL_USER ($REAL_HOME); hardware: $ECO_PROFILE; apps: $ECO_APPS"

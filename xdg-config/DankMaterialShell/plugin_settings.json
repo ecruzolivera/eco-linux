@@ -1,5 +1,8 @@
 {
   "recordingIndicator": {
     "enabled": true
+  },
+  "herdrAgents": {
+    "enabled": true
   }
 }

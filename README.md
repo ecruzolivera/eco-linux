@@ -4,13 +4,59 @@ Arch Linux customization — Niri + DMS (DankMaterialShell) + your apps.
 
 ## Prerequisites
 
-A minimal Arch Linux installation with a non-root sudo user and internet.
+A bootable **x86_64 Arch Linux** installation, HTTPS connectivity, `sudo`, `curl`,
+and a normal user who owns their home and has sudo access. Run interactively.
+The base install owns disks, encryption, firmware, kernels, bootloader and backups.
+Disable Omarchy repositories separately; this installer refuses an active
+`[omarchy]` repository and does not migrate an existing Omarchy installation.
 
 ## Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/install.sh | bash
+git clone https://github.com/ecruzolivera/eco-linux.git
+bash /absolute/path/to/eco-linux/install.sh --profile portable
 ```
+
+A local checkout is used directly, even from a different working directory.
+Do not pipe into Bash: the installation needs terminal input for package review
+and ordinary sudo. If bootstrapping without Git, download `install.sh` to a file
+from a reviewed revision and run `bash install.sh --ref <tag-or-40-character-commit>`
+as your normal user, without `sudo`; the installer escalates itself. Elevated
+standalone bootstraps are refused before downloading or provisioning.
+Use a commit hash for immutable selection; a moving ref is not a frozen release.
+No default remote `master` archive is selected and shared temporary directories
+are never erased. Changes in this checkout are **not published** automatically.
+
+`bash install.sh --help` lists the options:
+
+- `--apps personal` (default) includes daily applications and extra dev tools;
+  `--apps core` keeps desktop/development/session integrations.
+- `--config preserve` (default) keeps existing shipped files. `--config replace`
+  backs up changed files under `~/.local/state/eco-linux/config-backups/` before
+  replacing them. Extra destination files are never removed; directory symlinks
+  in deployment paths are refused.
+- `--profile ernesto` restores the saved display layout and supported battery
+  charge limits (75–80%). Portable defaults name no display connectors/batteries.
+- `--network preserve` (default) leaves network/DNS services alone.
+  `--network networkmanager` enables NetworkManager for the next boot only if no
+  competing active/enabled network manager is detected. No automatic migration.
+- `--nvidia auto` preserves installed drivers, selects open DKMS only for
+  recognized modern GPUs, and requires manual review for unknown/old GPUs.
+  `--nvidia off` skips graphics changes; `--nvidia open` is an explicit Turing+
+  choice. Matching installed-kernel headers are checked.
+- `--autologin` opts into SDDM autologin. Without it existing autologin/PAM files
+  are preserved, not disabled. No PAM edits or keyring weakening are performed.
+- `--firewall enable` (default) configures inactive UFW and Docker protections;
+  existing active UFW rules are preserved. Remote SSH installation requires
+  `--firewall preserve` and separately reviewed remote-access rules.
+- `--skip-user-setup` skips downloads/bootstrap for runtimes, editor and plugins;
+  completion is explicitly reported as **incomplete**.
+
+On an existing system, review conflicts and take independent backups first.
+The installer performs a full `pacman -Syu`; usual package hooks can update
+kernel/initramfs/boot files. It does not itself configure partitions, encryption,
+Limine, Snapper or boot entries. Limine/Snapper packages are deliberately outside
+the portable profile; never register an ext4 home as Btrfs.
 
 ## What it installs
 
@@ -21,17 +67,18 @@ curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/insta
 | **Browsers**     | Firefox Developer Edition, Brave, Chromium                                                                      |
 | **Editor**       | neovim (full config)                                                                                            |
 | **Dev tools**    | gh, glab, docker (+ buildx, compose), chezmoi, mise, just, mise, clang/llvm, gdb, lldb, git-lfs, ruby, luarocks |
-| **CLI utils**    | bat, eza, fd, fzf, ripgrep, jq, zoxide, tldr, fastfetch, diff-so-fancy, lazygit                                 |
+| **CLI utils**    | bat, eza, fd, fzf, ripgrep, jq, zoxide, tldr, fastfetch, diff-so-fancy, lazygit, gdu                            |
 | **Files**        | yazi, nautilus, gparted, gnome-disk-utility, evince                                                             |
 | **Media**        | mpv, imv, gimp, imagemagick, cava, ffmpegthumbnailer                                                            |
 | **Recording**    | wf-recorder, grim, slurp, satty, libnotify                                                                      |
 | **Gaming**       | steam, qbittorrent                                                                                              |
 | **Network**      | NetworkManager, iwd, wl-clipboard, wiremix, socat                                                               |
-| **Security**     | UFW (default-deny), systemd-resolved (DNS-over-TLS), gnome-keyring, fprintd                                     |
-| **System**       | SDDM (auto-login), pipewire/wireplumber, power-profiles-daemon, cups, brightnessctl, playerctl, bluetui         |
+| **Security**     | UFW (default-deny on new setups), gnome-keyring, fprintd; existing DNS configuration preserved                 |
+| **System**       | SDDM (autologin opt-in), pipewire/wireplumber, power-profiles-daemon, cups, brightnessctl, playerctl, bluetui    |
 | **Fonts**        | Noto (full/CJK/emoji), FiraCode Nerd, JetBrains Mono Nerd, Font Awesome                                         |
 | **Theming**      | adwaita-cursors, gnome-themes-extra, yaru-icon-theme, qt6ct, matugen                                            |
-| **AUR**          | opencode-beta (V2), herdr-bin, brave-bin, localsend-bin, megasync-bin, riskie-bin, worktrunk-bin, limine-snapper-sync |
+| **Personal apps** | Chrome, Claude Desktop, Slack, VS Code, Android Studio, Postman, pgAdmin, T3 Code, OpenCode Desktop, MEGAsync |
+| **AUR**          | Reviewed manifests in `packages/*.aur`; Herdr/OpenCode recipe revisions in `packages/integrations.lock`         |
 | **User scripts** | Herdr/tmux sessionizers, Worktrunk helpers, screenshots, recording, workspace numbers (`~/.local/bin/`)         |
 
 ## How it works
@@ -39,7 +86,7 @@ curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/insta
 The installer sources `scripts/*.sh` in lexicographic order:
 
 ```
-00-checks → 01-system → 02-yay → 03-packages → 04-sddm → 05-nvidia → 06-zsh → 07-copy-config → 08-battery → 09-docker → 10-firewall → zz-final
+00-checks → 01-system → 02-yay → 03-packages → 04-sddm → 05-nvidia → 06-zsh → 07-copy-config → 08-battery → 09-docker → 10-firewall → 11-user-setup → zz-final
 ```
 
 Configs are organized into payload directories:
@@ -50,19 +97,60 @@ Configs are organized into payload directories:
 | `home-root-config/` | `~/`                   | Home dotfiles and shared agent skills in `.agents/skills/`                                                        |
 | `local-bin/`        | `~/.local/bin/`        | `eco-tmux-sessionizer`, `eco-herdr-sessionizer`, shared launcher library, Worktrunk/screenshot/recording helpers |
 | `local-share/`      | `~/.local/share/`      | Checksum-guarded Herdr/OpenCode patch assets and Herdr zsh completions                                              |
-| `system-config/`    | `/etc/`, `/usr/share/` | NVIDIA env vars, SDDM session/autologin, battery charge limit service                                           |
+| `system-config/`    | Selected `/etc/` files | Opt-in SDDM autologin and battery unit; old environment/session assets are retained but not applied             |
+| `profiles/ernesto/` | Selected `~/.config/` files | Original personal monitor/workspace/DMS display settings, only when requested                              |
 
 ## NVIDIA
 
-If detected: `nvidia-dkms`, `nvidia-utils`, `nvidia-settings`, `egl-wayland` are installed. Environment variables (`GBM_BACKEND`, `__GLX_VENDOR_LIBRARY_NAME`, `LIBVA_DRIVER_NAME`) set in `/etc/environment`. Early KMS via `nvidia_drm modeset=1` and initramfs module loading enabled.
+Existing installed drivers are preserved. Known Turing+ NVIDIA GPUs use
+`nvidia-open-dkms`, matching kernel headers, `nvidia-utils`, `nvidia-settings` and
+`egl-wayland`. Ambiguous/older hardware requires manual selection; auto mode does
+not guess a legacy driver. No global GPU-routing environment variables are
+written and no explicit boot/initramfs changes are made. Physical GPU and resume
+testing remains necessary. This installer is not a driver migration tool.
 
 ## DMS (DankMaterialShell)
 
 Runs on top of niri as a systemd user service (`dms.service`) — bar, launcher, notifications, lock screen, OSD. Includes its own polkit agent and idle management (auto-lock / display-off / suspend with separate AC and battery profiles).
 
+Two custom plugins are bundled under `xdg-config/DankMaterialShell/plugins/`,
+enabled in `plugin_settings.json`, and placed in the main bar's center section:
+
+- **Recording Indicator** (`recordingIndicator`): shows a recording dot while
+  `wf-recorder` is running; clicking it invokes the bundled recording helper.
+- **Herdr Agents** (`herdrAgents`, DMS 1.6+): one robot icon for the default local
+  Herdr session. Any blocked agent makes it filled red; otherwise any done agent
+  makes it filled green, any working agent makes it filled yellow, and all idle
+  agents make it outlined green. Unknown/unavailable states are outlined gray;
+   no agents hides the icon. Click for details; hovering shows no information.
+   The icon uses the `smart_toy` shape. One shared daemon listens
+  to Herdr's Unix-socket events and refreshes snapshots without CLI processes per
+  update. It reconnects and resynchronizes automatically, with a 60-second safety
+  refresh and 10-second fallback polling when events are unavailable.
+
+The copy module installs these local plugins without registry downloads or
+modifications to Herdr. Their live counterparts are also captured in chezmoi's
+`dot_config/DankMaterialShell/`; capture only the custom plugin directories,
+enablement and relevant bar entries, not runtime registries or caches.
+
+Safe plugin verification (Node and `/usr/bin/qs` required for the integration suite):
+
+```sh
+node --test xdg-config/DankMaterialShell/plugins/herdr-agents/tests/*.test.cjs
+python3 tests/verify-bootstrap.py
+```
+
+Integration tests use a fake Herdr Unix-socket server/CLI and isolated, non-visual Quickshell
+instances in `/tmp/opencode/`, never your live agents or running DMS shell.
+
 ## Docker
 
-Socket-activated (starts on demand), log limits (10 MB × 5 files), DNS passthrough via systemd-resolved at `172.17.0.1`, auto-adds user to `docker` group, doesn't block boot without network.
+Socket activation is enabled for the next boot. New daemon configurations get
+10 MB × 5-file log limits; existing configurations are preserved. Docker manages
+its usual networking/upstream DNS without forcing `172.17.0.1`, altering
+`systemd-resolved`, or replacing network configuration. Custom/VPN subnet
+conflicts must be reviewed in existing Docker configuration. Docker group
+membership grants root-equivalent privileges and takes effect after login.
 
 ## Firewall
 
@@ -74,6 +162,14 @@ Home dotfiles (`.zshrc`, `.profile`, `.bashrc`, `.vimrc`, `Xresources`, etc.) li
 
 [chezmoi](https://chezmoi.io) is installed for personal dotfile management — see [github.com/ecruzolivera/dotfiles](https://github.com/ecruzolivera/dotfiles) (configured at `~/.config/chezmoi/chezmoi.toml`).
 
+### gdu theme
+
+`xdg-config/gdu/gdu.yaml` installs a static Dank palette at `~/.config/gdu/gdu.yaml`,
+matching the current Ghostty theme: purple selections, lavender directories,
+green sizes, and dark header/footer bars. gdu loads it automatically on launch.
+Only colors are changed; scanning, sorting, and deletion behavior remain unchanged.
+The palette does not automatically follow later DMS theme changes.
+
 ### Source of truth and reconciliation
 
 The **current working user configuration is authoritative**. This repository and
@@ -82,7 +178,7 @@ to make it match an older saved copy. The 2026-10-11 reconciliation captured 274
 durable files, including the current Neovim lockfile, global skills, pinned Yazi
 plugins and the tested OpenCode V2 / Herdr integration.
 
-The only payload content adjustments are:
+The original capture's payload portability adjustments are:
 
 - Shell and Worktrunk home paths use `$HOME`; zsh's `DEFAULT_USER` uses `$USER`.
 - Niri home paths and the local Herdr plugin use `__HOME__`, substituted by
@@ -90,9 +186,17 @@ The only payload content adjustments are:
 - DMS-generated Niri includes remain optional before DMS's first startup.
   Neovim and Ghostty palette files are shipped as current default seeds.
 
-Current personal preferences, project-specific Worktrunk rules, models, providers,
-permissions and monitor settings are retained. Review hardware-specific display
-settings when installing on another computer. Herdr patch metadata contains
+Installer hardening additionally guards optional autostarts, uses an explicit
+shell argv for lid-close commands, avoids a duplicate polkit agent, and guards
+the optional Rust environment in Bash. The PWA menu helper is included with
+collision-free keys. Existing personal display preferences remain in the
+optional hardware profile; none of these changes were applied to the live home.
+
+Current personal preferences, project-specific Worktrunk rules, models, providers
+and permissions are retained. Monitor settings are preserved in the optional
+`ernesto` profile rather than imposed on portable installs. The global agent rule
+for new repositories (`master`, without renaming existing branches) is included.
+Herdr patch metadata contains
 historical source-machine paths as provenance, not installation destinations.
 
 No credentials, provider login state, OpenCode service registrations, Herdr
@@ -103,10 +207,12 @@ exist live; `cli.json` is the active V2 terminal configuration.
 
 Git cannot record private or read-only non-executable modes. The copy module
 explicitly restores `cli.json` to `0600` and the shipped Yazi plugin files to
-`0444`; final setup assigns the new skills/local-share payloads to the target user.
+`0444`. Deployment and user bootstrap run as the target user; existing home
+ownership is never recursively rewritten.
 
-Copying is an **overlay**, not a home-directory reset. Extra destination files are
-preserved. Existing legacy `opencode.json`, `.zshenv`, and old OpenCode skill
+Copying is an **overlay**, not a home-directory reset. Existing files are preserved
+by default; explicit replacements get private backups. Extra destination files are
+always preserved. Existing legacy `opencode.json`, `.zshenv`, and old OpenCode skill
 directories produce warnings and are not deleted automatically. Review them
 before using the new configuration: an old config can still influence settings,
 and an old `.zshenv` may source a missing Rust environment.
@@ -118,19 +224,31 @@ installed packages. The shipped patch was verified with **OpenCode 2.0.26,
 Herdr 0.9.3, integration v13**; future AUR versions are not assumed compatible.
 Provider authentication must be performed separately on a new machine.
 
-After installation, as the normal user:
+`11-user-setup.sh` now runs the normal-user bootstrap automatically: trusts and
+installs global mise tools (Temurin 21, Node/npm/npx, Bun, Go), ensures a Rust
+toolchain for the git-status plugin plus `rust-analyzer` and `rust-src` for Neovim,
+verifies that the analyzer runs, restores the Neovim lockfile, installs the
+configured Mason tools, and checks LTeX+ on Java 21. It validates
+expected lock revisions from a pre-restoration snapshot and refuses existing
+edited/untracked or linked editor plugin checkouts instead of discarding them.
+It also validates the exact
+reviewed Herdr/OpenCode versions before installing plugins or applying the
+checksum-guarded patch. Required failures stop installation and mark the report
+at `~/.local/state/eco-linux/user-setup.txt` incomplete. A failed package/system
+stage is identified on stderr; already completed package changes are not rolled
+back. No persistent passwordless pacman grant is created, even on failure.
+
+Neovim/plugin provisioning performs downloads and executes the configured plugin
+code as the user, so review the checkout before installation. No provider login,
+model request or live-session restart is part of bootstrap. Herdr GitHub plugins
+are confirmed interactively and verified after install; declining them does not
+produce false success. Already-reviewed revisions are retained on reruns;
+unfamiliar installations or local modifications are refused rather than erased.
+
+To finish after `--skip-user-setup`, run as the normal user:
 
 ```bash
-# Install the runtimes declared by the current mise configuration.
-mise install
-
-# Review/trust these plugins before linking or installing them. Their resolved
-# source revisions reproduce the current installation; registries are generated.
-herdr plugin link "$HOME/.config/herdr/plugins/local/eco-ws-number" --enabled
-herdr plugin install ezcorp-org/herdr-git-status --ref f144c8dac2860e344b6b379d2bcfee229dcf10ad
-herdr plugin install mike-bronner/herdr-plugin-recent-spaces --ref 88d6f0590ba5e44c7f0ae3167462aa2b27178f38
-
-node "$HOME/.local/share/herdr-opencode-fix/deploy.mjs" --check
+ECO_APPS=personal bash /absolute/path/to/eco-linux/lib/user-setup.sh /absolute/path/to/eco-linux
 ```
 
 Node/Bun are declared in `xdg-config/mise/config.toml`, not copied from the source
@@ -156,6 +274,8 @@ historical OpenCode completion block; they have not been independently migrated.
 
 ```bash
 python3 tests/verify-bootstrap.py
+python3 tests/verify-installer.py
+python3 tests/package-coverage.py --check-repos --installed
 ```
 
 This checks shell/Lua/JavaScript syntax, Neovim mappings/events and JSON/JSONC/TOML documents, then runs **only
@@ -164,7 +284,12 @@ home-path substitution (including spaces, `&` and `|`), Niri includes/validation
 Herdr patch checksums, repeat-copy behavior, Git-checkout permission restoration,
 and preservation/warnings for an existing target (including destination file
 symlinks). Optional tools are used only if already installed; nothing is
-installed, authenticated or started in the real home.
+installed, authenticated or started in the real home. `verify-installer.py`
+uses inert module fixtures and mocked commands for entrypoint/cwd, fresh yay,
+failure/interruption, deployment/profile, GPU selection and integration refusal
+tests; it never runs real system modules. `package-coverage.py` accounts for the
+selected manifests and classifies source-machine omissions in
+`packages/omissions.toml`; `--commands` and `--packages` are post-install checks.
 
 `--live-manifest /path/to/private/manifest.json` additionally verifies all captured
 files against a pre-reconciliation live snapshot and checks that live files,
@@ -173,15 +298,20 @@ Snapshots and backups are kept outside this repository.
 
 Do **not** run `install.sh` as a test. Fresh-boot installation, package provisioning,
 and real Herdr/Neovim interaction still need a disposable Arch machine or
-user-assisted checks. The existing local-entrypoint `lib/00-checks.sh` detection
-issue is unchanged; the curl invocation also uses the published branch, not
-uncommitted local changes.
+user-assisted checks. **Phases 1–4 are implemented, not end-to-end certified.**
+Phase 5 (clean Arch VM, different username, complete provisioning/login/rerun and
+interruption checks) remains deferred, along with physical GPU/suspend validation.
+Passwords, browser state/PWAs, SSH keys, project data and licensed Wonderdraft
+media are not restored. `tobi-try` and unsupported hardware tools need separate
+local packaging; `try-cli` is not a compatible replacement. Review the optional
+package omissions against your actual daily use before calling your personal
+application profile complete. No package is removed just because it is omitted.
 
 ## Customization
 
 | Edit              | Location                                         |
 | ----------------- | ------------------------------------------------ |
-| Packages          | `scripts/03-packages.sh`                         |
+| Packages          | `packages/*.official`, `packages/*.aur`, `packages/integrations.lock` |
 | Niri              | `xdg-config/niri/*.kdl`                          |
 | Home dotfiles     | `home-root-config/`                              |
 | User scripts      | `local-bin/`                                     |

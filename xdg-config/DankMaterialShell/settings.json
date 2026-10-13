@@ -61,7 +61,11 @@
           "clockCompactMode": false
         },
         "weather",
-        "recordingIndicator"
+        "recordingIndicator",
+        {
+          "id": "herdrAgents",
+          "enabled": true
+        }
       ],
       "rightWidgets": [
         {
