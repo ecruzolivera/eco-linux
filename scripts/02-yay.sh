@@ -13,11 +13,11 @@ fi
   run_user git clone https://aur.archlinux.org/yay-bin.git "$build/source"
   info 'Review yay-bin before executing its PKGBUILD'
   cat "$build/source/PKGBUILD"
-  read -r -p 'Build this recipe? [y/N] ' answer
+  read -r -p 'Build this reviewed yay recipe? [y/N] ' answer
   [[ $answer == y || $answer == Y ]] || error 'yay build declined'
   cd "$build/source"
   run_user makepkg --syncdeps --cleanbuild
   mapfile -t artifacts < <(run_user makepkg --packagelist)
   ((${#artifacts[@]})) || error 'No yay artifacts produced'
-  pacman -U --needed "${artifacts[@]}"
+  pacman -U --needed --noconfirm "${artifacts[@]}"
 )

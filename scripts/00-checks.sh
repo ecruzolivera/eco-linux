@@ -16,7 +16,8 @@ for command in sudo pacman getent curl tar git awk grep sed cp find mktemp syste
   command -v "$command" >/dev/null || error "Missing bootstrap command: $command"
 done
 curl --fail --silent --show-error --location --max-time 20 --proto '=https' https://archlinux.org/ -o /dev/null || error 'HTTPS connectivity/DNS check failed'
-run_user sudo -v || error 'Target user must have ordinary sudo access for AUR dependencies'
+# As root, inspect the target user's sudo policy without prompting a second time.
+sudo -l -U "$REAL_USER" >/dev/null 2>&1 || error 'Target user must have ordinary sudo access for AUR dependencies'
 [[ $ECO_FIREWALL != preserve ]] || warn 'SSH session detected: firewall policy will be preserved to avoid locking you out'
 if grep -Eq '^\[omarchy\]' /etc/pacman.conf; then
   error 'Disable the Omarchy repository separately before installing; this installer does not migrate existing repositories'

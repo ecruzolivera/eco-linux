@@ -276,12 +276,10 @@ class InstallerTests(unittest.TestCase):
                 git)
                   if [[ $2 == clone ]]; then
                     mkdir -p "${{@: -1}}"
-                    name=$3; name=${{name%.git}}; name=${{name##*/}}
-                    printf '%s\\n' "$name" > "{marker}/current-name"
                     printf '# inert recipe\\n' > "${{@: -1}}/PKGBUILD"
                   fi;;
                 makepkg)
-                  name=$(cat "{marker}/current-name")
+                  name=${{PWD##*/}}
                   if [[ $2 == --packagelist ]]; then printf '%s\\n' "$PWD/$name.pkg.tar.zst"; fi;;
                 *) return 98;;
               esac
@@ -294,18 +292,67 @@ class InstallerTests(unittest.TestCase):
                       herdr-bin) printf 'herdr-bin 0.9.3-1\\n';;
                       opencode-beta) printf 'opencode-beta 2.0.26-1\\n';;
                     esac;;
-                -U) touch "{marker}/installed-$(cat {marker}/current-name)";;
+                -U) touch "{marker}/installed-${{PWD##*/}}";;
                 *) return 98;;
               esac
             }}
             cd "{self.root}"
             source "{REPO}/scripts/03-packages.sh"
             printf 'complete\\n' >> "{marker}/done"
-        ''', input='y\ny\n')
+        ''', input='y\n')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((marker / 'installed-herdr-bin').exists())
         self.assertTrue((marker / 'installed-opencode-beta').exists())
         self.assertEqual((marker / 'done').read_text().strip(), 'complete')
+        output = result.stdout + result.stderr
+        # Both pinned recipes are fetched and reviewed before a single decision;
+        # providing exactly one confirmation proves only one prompt is required.
+        for name in ['herdr-bin 0.9.3-1', 'opencode-beta 2.0.26-1']:
+            self.assertIn(f'reviewed integration recipe: {name}', output)
+
+    def test_pinned_integration_decline_stops_before_any_build(self):
+        repo = self.root / 'declined-repo'
+        shutil.copytree(REPO / 'packages', repo / 'packages')
+        marker = self.root / 'declined-markers'
+        marker.mkdir()
+        result = self.bash(f'''
+            INSTALLER_DIR="{repo}" ECO_APPS=personal
+            REAL_UID=1000 REAL_GID=1000
+            phase() {{ :; }}; info() {{ :; }}; warn() {{ :; }}
+            error() {{ printf 'error: %s\\n' "$*" >&2; exit 42; }}
+            read_manifest() {{ printf '\\n'; }}
+            install_aur() {{ return 0; }}
+            chown() {{ :; }}
+            mktemp() {{ printf '%s\\n' "{marker}/eco-build"; }}
+            run_user() {{
+              case $1 in
+                git) case $2 in
+                       clone) mkdir -p "${{@: -1}}"
+                              printf '# inert recipe\\n' > "${{@: -1}}/PKGBUILD";;
+                       -C) :;;
+                       *) return 98;;
+                     esac;;
+                makepkg) touch "{marker}/built-any";;
+                *) return 98;;
+              esac
+            }}
+            pacman() {{
+              case $1 in
+                -S) return 0;;
+                -Q) return 1;;
+                -U) touch "{marker}/installed-any";;
+                *) return 98;;
+              esac
+            }}
+            cd "{self.root}"
+            source "{REPO}/scripts/03-packages.sh"
+            printf 'complete\\n' >> "{marker}/done"
+        ''', input='n\n')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertIn('declined', result.stderr)
+        self.assertFalse((marker / 'built-any').exists())
+        self.assertFalse((marker / 'installed-any').exists())
+        self.assertFalse((marker / 'done').exists())
 
     def test_network_detection_preserves_active_or_enabled_manager(self):
         for service in ['NetworkManager', 'systemd-networkd', 'iwd', 'dhcpcd', 'connman', 'netctl',
@@ -487,10 +534,17 @@ esac
     def test_no_database_only_upgrades_or_sudoers_writes(self):
         scripts = '\n'.join(path.read_text() for path in (REPO / 'scripts').glob('*.sh'))
         self.assertNotRegex(scripts, r'pacman -Sy(?:\s|$)')
-        self.assertIn('pacman -Syu --needed', scripts)
+        self.assertIn('pacman -Syu --needed --noconfirm', scripts)
+        self.assertIn('pacman -S --needed --noconfirm', scripts)
+        self.assertIn('pacman -U --needed --noconfirm', scripts)
         self.assertNotIn('NOPASSWD', scripts)
         self.assertNotRegex(scripts, r'>\s*/etc/sudoers')
         self.assertNotIn('chown -', (REPO / 'scripts/zz-final.sh').read_text())
+        # Preflight must not refresh sudo interactively; it inspects the policy as root.
+        self.assertNotIn('sudo -v', scripts)
+        self.assertIn('sudo -l -U "$REAL_USER"', scripts)
+        # The pinned pair is reviewed once instead of once per recipe.
+        self.assertEqual(scripts.count('Build all reviewed integration recipes?'), 1)
 
     def herdr_module(self):
         spec = importlib.util.spec_from_file_location('eco_bootstrap_herdr', REPO / 'lib/bootstrap-herdr.py')

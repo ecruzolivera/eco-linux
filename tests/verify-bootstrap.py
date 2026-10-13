@@ -162,6 +162,11 @@ def validate_payloads():
                          if path.suffix in {".official", ".aur", ".lock"})
     for name in ["opencode-beta", "herdr-bin", "kitty", "slurp", "libnotify", "python", "procps-ng", "util-linux"]:
         require(re.search(rf"^{re.escape(name)}(?:\s|$)", packages, re.MULTILINE), f"Missing package: {name}")
+    require(re.search(r"^dms-shell$", packages, re.MULTILINE), "Missing package: dms-shell")
+    require(not re.search(r"^dms-shell-niri$", packages, re.MULTILINE),
+            "Retired package dms-shell-niri reappeared; Arch replaced it with dms-shell")
+    provider = tomllib.loads((REPO / "packages/commands.toml").read_text())["commands"]
+    require(provider["dms"] == "dms-shell", f"DMS provider must be dms-shell, not {provider['dms']}")
     run(["python3", str(REPO / "tests/package-coverage.py")])
     verify_dms_plugins(REPO / "xdg-config/DankMaterialShell")
     if shutil.which("node"):

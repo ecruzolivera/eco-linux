@@ -4,4 +4,4 @@ if ! grep -Eq '^\[multilib\]' /etc/pacman.conf; then
   printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
 fi
 info 'Performing a full official-repository upgrade and installing bootstrap tools'
-pacman -Syu --needed base-devel git curl python sudo
+pacman -Syu --needed --noconfirm base-devel git curl python sudo

@@ -20,8 +20,8 @@ for pkgbase in /usr/lib/modules/*/pkgbase; do
 done
 if [[ $driver == open ]]; then
   ((${#headers[@]})) || error 'No installed kernel/header pair detected'
-  pacman -S --needed nvidia-open-dkms nvidia-utils nvidia-settings egl-wayland "${headers[@]}"
+  pacman -S --needed --noconfirm nvidia-open-dkms nvidia-utils nvidia-settings egl-wayland "${headers[@]}"
 elif ((${#headers[@]})); then
-  pacman -S --needed "${headers[@]}"
+  pacman -S --needed --noconfirm "${headers[@]}"
 fi
 info 'No global NVIDIA routing variables, initramfs or bootloader changes made'
