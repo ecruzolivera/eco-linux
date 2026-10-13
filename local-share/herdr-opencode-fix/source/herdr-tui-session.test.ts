@@ -776,7 +776,7 @@ test("V2 preserves execution deltas over stale activity snapshots", async () => 
   expect(states().at(-1)).toBe("idle");
 });
 
-test("V2 prioritizes blockers and failures over active descendants", async () => {
+test("V2 prioritizes real blockers but does not latch a failed child", async () => {
   const tui = v2Api();
   const dispose = (await loadPlugin()).setup(tui.api);
   activeDisposers.push(dispose);
@@ -792,10 +792,137 @@ test("V2 prioritizes blockers and failures over active descendants", async () =>
   expect(states().at(-1)).toBe("working");
   tui.emit("session.execution.failed", { sessionID: "child" });
   await flushReports();
+  expect(states().at(-1)).toBe("idle");
+  tui.emit("session.execution.started", { sessionID: "a" });
+  await flushReports();
+  expect(states().at(-1)).toBe("working");
+});
+
+test("V2 child failure leaves a running parent working and settles after parent completion", async () => {
+  const tui = v2Api();
+  const dispose = (await loadPlugin()).setup(tui.api);
+  activeDisposers.push(dispose);
+  await flushReports();
+  requests.length = 0;
+  tui.emit("session.execution.started", { sessionID: "a" });
+  tui.emit("session.execution.started", { sessionID: "child" });
+  tui.emit("session.execution.failed", { sessionID: "child" });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("working");
+  tui.emit("session.execution.succeeded", { sessionID: "a" });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("idle");
+  expect(states()).not.toContain("blocked");
+});
+
+test("V2 a failed grandchild cannot block a running sibling", async () => {
+  const tui = v2Api();
+  tui.sessions.set("sibling", { id: "sibling", parentID: "a" });
+  tui.sessions.set("grandchild", { id: "grandchild", parentID: "child" });
+  const dispose = (await loadPlugin()).setup(tui.api);
+  activeDisposers.push(dispose);
+  await flushReports();
+  requests.length = 0;
+  tui.emit("session.execution.started", { sessionID: "sibling" });
+  tui.emit("session.execution.started", { sessionID: "grandchild" });
+  tui.emit("session.execution.failed", { sessionID: "grandchild" });
+  await flushReports();
+  expect(states().at(-1)).toBe("working");
+  tui.emit("session.execution.succeeded", { sessionID: "sibling" });
+  await flushReports();
+  expect(states().at(-1)).toBe("idle");
+  expect(states()).not.toContain("blocked");
+});
+
+test("V2 child failures preserve pending permissions and forms until replies", async () => {
+  const tui = v2Api();
+  const dispose = (await loadPlugin()).setup(tui.api);
+  activeDisposers.push(dispose);
+  await flushReports();
+  tui.emit("session.execution.started", { sessionID: "a" });
+  tui.emit("permission.asked", { sessionID: "child", id: "p" });
+  tui.emit("form.created", { form: { sessionID: "child", id: "f" } });
+  tui.emit("session.execution.failed", { sessionID: "child" });
+  await flushReports();
+  expect(states().at(-1)).toBe("blocked");
+  tui.emit("permission.replied", { sessionID: "child", requestID: "p" });
+  await flushReports();
+  expect(states().at(-1)).toBe("blocked");
+  tui.emit("form.replied", { sessionID: "child", id: "f" });
+  await flushReports();
+  expect(states().at(-1)).toBe("working");
+});
+
+test("V2 acknowledges failed child deltas and observes later cached retries", async () => {
+  const tui = v2Api();
+  tui.statuses.set("child", "running");
+  const dispose = (await loadPlugin()).setup(tui.api);
+  activeDisposers.push(dispose);
+  await flushReports();
+  requests.length = 0;
+  tui.emit("session.execution.failed", { sessionID: "child" });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("idle");
+  // Starting the parent must not revive the child's stale running snapshot.
+  tui.emit("session.execution.started", { sessionID: "a" });
+  tui.emit("session.execution.succeeded", { sessionID: "a" });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("idle");
+  tui.statuses.set("child", "idle");
+  tui.sessions.set("child", { id: "child", parentID: "a", outcome: "failed" });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("idle");
+  // Cache acknowledgement releases the delta, so a missed retry event is safe.
+  tui.statuses.set("child", "running");
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("working");
+  tui.emit("session.execution.failed", { sessionID: "child" });
+  tui.emit("session.execution.started", { sessionID: "child" });
+  await flushReports();
+  expect(states().at(-1)).toBe("working");
+  expect(states()).not.toContain("blocked");
+});
+
+test("V2 reconnect hydrates child retries after failures without hiding root failures", async () => {
+  const tui = v2Api();
+  const dispose = (await loadPlugin()).setup(tui.api);
+  activeDisposers.push(dispose);
+  await flushReports();
+  tui.emit("session.execution.failed", { sessionID: "child" });
+  await flushReports();
+  expect(states().at(-1)).toBe("idle");
+  tui.statuses.set("child", "running");
+  tui.emit("server.connected");
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(states().at(-1)).toBe("working");
+  expect(states()).not.toContain("blocked");
+  tui.emit("session.execution.failed", { sessionID: "a" });
+  tui.emit("server.connected");
+  await flushReports();
   expect(states().at(-1)).toBe("blocked");
   tui.emit("session.execution.started", { sessionID: "a" });
   await flushReports();
   expect(states().at(-1)).toBe("working");
+});
+
+test("V2 switching sessions or selecting a child does not revive child failures", async () => {
+  const tui = v2Api();
+  const dispose = (await loadPlugin()).setup(tui.api);
+  activeDisposers.push(dispose);
+  await flushReports();
+  requests.length = 0;
+  tui.emit("session.execution.failed", { sessionID: "child" });
+  tui.sessions.set("child", { id: "child", parentID: "a", outcome: "failed" });
+  tui.select("b");
+  tui.emit("session.execution.started", { sessionID: "b" });
+  await flushReports();
+  expect(states().at(-1)).toBe("working");
+  tui.select("child");
+  tui.emit("session.execution.succeeded", { sessionID: "a" });
+  await flushReports();
+  expect(states().at(-1)).toBe("idle");
+  expect(requestParam(requests.at(-1), "agent_session_id")).toBe("a");
+  expect(states()).not.toContain("blocked");
 });
 
 test("V2 ignores historical child failures but hydrates the selected root failure", async () => {

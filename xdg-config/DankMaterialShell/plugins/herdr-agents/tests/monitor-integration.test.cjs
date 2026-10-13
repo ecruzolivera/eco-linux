@@ -1,11 +1,30 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 const { spawn, fork } = require("node:child_process");
 const { once } = require("node:events");
 const { test } = require("node:test");
 
-const cliFixture = `#!/usr/bin/node
+// Resolve the real test tools before isolating the fixture's PATH.
+const candidates = process.env.HERDR_TEST_QS
+    ? [path.resolve(process.env.HERDR_TEST_QS)]
+    : (process.env.PATH || "").split(path.delimiter).flatMap(directory =>
+        ["qs", "quickshell"].map(name => path.resolve(directory, name)));
+const quickshell = candidates.find(candidate => {
+    try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return fs.statSync(candidate).isFile();
+    } catch {
+        return false;
+    }
+});
+if (!quickshell)
+    throw new Error("Integration tests require Quickshell on PATH, or HERDR_TEST_QS set to its executable path.");
+const temporaryRoot = process.env.TMPDIR
+    || (fs.existsSync("/tmp/opencode") ? "/tmp/opencode" : os.tmpdir());
+
+const cliFixture = `#!${process.execPath}
 const fs = require("node:fs");
 const directory = process.env.HERDR_TEST_DIRECTORY;
 fs.appendFileSync(directory + "/cli-calls", JSON.stringify({args: process.argv.slice(2), pid: process.pid}) + "\\n");
@@ -17,10 +36,14 @@ else if (process.argv[2] === "status") {
 `;
 
 async function runMonitor(mode, expected, options = {}) {
-    const directory = fs.mkdtempSync("/tmp/opencode/herdr-monitor-test-");
+    const directory = fs.mkdtempSync(path.join(temporaryRoot, "herdr-test-"));
     let server;
     let monitor;
     try {
+        // Leave room for the relocated endpoint and the terminating NUL byte.
+        // Without this guard, Node and Qt may handle truncated paths differently.
+        if (Buffer.byteLength(path.join(directory, "new-herdr.sock")) >= 104)
+            throw new Error("Test temporary path exceeds the Unix-socket limit. Set TMPDIR to a shorter directory.");
         for (const file of ["HerdrMonitor.qml", "AgentState.js", "HerdrProtocol.js"])
             fs.copyFileSync(path.join(__dirname, "..", file), path.join(directory, file));
         fs.copyFileSync(path.join(__dirname, "monitor-harness.qml"), path.join(directory, "shell.qml"));
@@ -35,7 +58,7 @@ async function runMonitor(mode, expected, options = {}) {
         } else fs.writeFileSync(path.join(directory, "endpoint"), "");
         if (options.override)
             env.HERDR_SOCKET_PATH = fs.readFileSync(path.join(directory, "endpoint"), "utf8");
-        monitor = spawn("/usr/bin/qs", ["--no-color", "-p", directory], { env });
+        monitor = spawn(quickshell, ["--no-color", "-p", directory], { env });
         let output = "";
         monitor.stdout.on("data", chunk => { output += chunk; });
         monitor.stderr.on("data", chunk => { output += chunk; });

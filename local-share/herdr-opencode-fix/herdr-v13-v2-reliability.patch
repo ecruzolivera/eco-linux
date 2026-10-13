@@ -60,7 +60,7 @@
    }
  
    // A dropped report must not strand the pane on a stale state once the
-@@ -457,13 +471,53 @@
+@@ -457,13 +471,52 @@
      if (disposed || retryTimer) return;
      retryTimer = setTimeout(() => {
        retryTimer = undefined;
@@ -86,18 +86,17 @@
 +    const status = api.data.session.status(id);
 +    const outcome = api.data.session.get(id)?.outcome;
 +    const change = activityChanges.get(id);
-+    // Hold event deltas until the cache acknowledges them. A failed descendant
-+    // stays actionable until it retries, the root retries, or it is deleted;
-+    // historical failures of unrelated past child executions are not blockers.
-+    if (change && change.outcome !== "failed" && status === change.status &&
++    // Keep terminal deltas until cache acknowledgement so a failed child cannot
++    // appear running again. Only a failure of the selected root is actionable.
++    if (change && (id !== selected || change.outcome !== "failed") && status === change.status &&
 +        (change.outcome === undefined || outcome === change.outcome)) {
 +      activityChanges.delete(id);
 +    }
 +    const pending = activityChanges.get(id);
 +    return {
 +      running: (pending?.status ?? status) === "running",
-+      failed: pending ? pending.outcome === "failed" :
-+        id === selected && status !== "running" && outcome === "failed",
++      failed: id === selected && (pending ? pending.outcome === "failed" :
++        status !== "running" && outcome === "failed"),
 +    };
 +  }
 +
@@ -117,7 +116,7 @@
    }
  
    function changeBlocker(id, kind, requestID, present) {
-@@ -477,9 +531,7 @@
+@@ -477,9 +530,7 @@
    function reconcileBlockers() {
      const next = new Map();
      const hydrated = new Set();
@@ -128,7 +127,7 @@
        for (const kind of ["permission", "form"]) {
          const items = api.data.session[kind].list(member);
          if (items === undefined) {
-@@ -493,6 +545,7 @@
+@@ -493,6 +544,7 @@
        }
      }
      for (const [key, change] of blockerChanges) {
@@ -136,7 +135,7 @@
        if (hydrated.has(`${change.kind}:${change.id}`) && next.has(key) === change.present) {
          blockerChanges.delete(key);
        } else if (change.present) {
-@@ -501,39 +554,54 @@
+@@ -501,39 +553,54 @@
          next.delete(key);
        }
      }
@@ -188,11 +187,11 @@
    function receive({ details: event }) {
      if (disposed) return;
 +    if (event.type === "server.connected") {
-+      // Non-failure deltas from the old connection cannot describe executions
-+      // that completed or restarted while disconnected. Let the fresh snapshot
-+      // reconcile them; events admitted after this boundary still take priority.
++      // Old activity deltas cannot describe executions completed or restarted
++      // while disconnected. Retain only the selected root's actionable failure;
++      // hydrate descendants afresh, including children that previously failed.
 +      for (const [id, change] of activityChanges) {
-+        if (change.outcome !== "failed") activityChanges.delete(id);
++        if (id !== selected || change.outcome !== "failed") activityChanges.delete(id);
 +      }
 +      lastQueuedState = undefined;
 +      syncSelection();
@@ -201,7 +200,7 @@
      const data = event.data;
      if (data == null) return;
      if (event.type === "session.created") {
-@@ -541,7 +609,9 @@
+@@ -541,7 +608,9 @@
      }
      if (event.type === "session.deleted") {
        const affected = data.sessionID === selected || [...blockers.values()].includes(data.sessionID);
@@ -211,17 +210,12 @@
        // Deletion is delivered after the cache can remove the session. Use
        // stored ownership rather than looking up the deleted child's ancestry.
        for (const [key, owner] of blockers) if (owner === data.sessionID) blockers.delete(key);
-@@ -570,17 +640,21 @@
+@@ -570,17 +639,16 @@
          changeBlocker(id, "form", data.id, false);
          break;
        case "session.execution.started":
 -        if (id !== selected) return;
 -        state = "working";
-+        if (id === selected) {
-+          for (const member of members()) {
-+            if (activityChanges.get(member)?.outcome === "failed") activityChanges.delete(member);
-+          }
-+        }
 +        activityChanges.set(id, { status: "running" });
          break;
        case "session.execution.succeeded":
@@ -239,7 +233,7 @@
          break;
        default:
          return;
-@@ -598,6 +672,8 @@
+@@ -598,6 +666,8 @@
      clearInterval(poll);
      unsubscribe();
      sessions.clear();
@@ -319,7 +313,7 @@
    dispose();
    expect(tui.listeners.size).toBe(0);
    tui.select("a");
-@@ -701,3 +708,260 @@
+@@ -701,3 +708,387 @@
    expect(states().at(-1)).toBe("idle");
    dispose();
  });
@@ -391,7 +385,7 @@
 +  expect(states().at(-1)).toBe("idle");
 +});
 +
-+test("V2 prioritizes blockers and failures over active descendants", async () => {
++test("V2 prioritizes real blockers but does not latch a failed child", async () => {
 +  const tui = v2Api();
 +  const dispose = (await loadPlugin()).setup(tui.api);
 +  activeDisposers.push(dispose);
@@ -407,10 +401,137 @@
 +  expect(states().at(-1)).toBe("working");
 +  tui.emit("session.execution.failed", { sessionID: "child" });
 +  await flushReports();
++  expect(states().at(-1)).toBe("idle");
++  tui.emit("session.execution.started", { sessionID: "a" });
++  await flushReports();
++  expect(states().at(-1)).toBe("working");
++});
++
++test("V2 child failure leaves a running parent working and settles after parent completion", async () => {
++  const tui = v2Api();
++  const dispose = (await loadPlugin()).setup(tui.api);
++  activeDisposers.push(dispose);
++  await flushReports();
++  requests.length = 0;
++  tui.emit("session.execution.started", { sessionID: "a" });
++  tui.emit("session.execution.started", { sessionID: "child" });
++  tui.emit("session.execution.failed", { sessionID: "child" });
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("working");
++  tui.emit("session.execution.succeeded", { sessionID: "a" });
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("idle");
++  expect(states()).not.toContain("blocked");
++});
++
++test("V2 a failed grandchild cannot block a running sibling", async () => {
++  const tui = v2Api();
++  tui.sessions.set("sibling", { id: "sibling", parentID: "a" });
++  tui.sessions.set("grandchild", { id: "grandchild", parentID: "child" });
++  const dispose = (await loadPlugin()).setup(tui.api);
++  activeDisposers.push(dispose);
++  await flushReports();
++  requests.length = 0;
++  tui.emit("session.execution.started", { sessionID: "sibling" });
++  tui.emit("session.execution.started", { sessionID: "grandchild" });
++  tui.emit("session.execution.failed", { sessionID: "grandchild" });
++  await flushReports();
++  expect(states().at(-1)).toBe("working");
++  tui.emit("session.execution.succeeded", { sessionID: "sibling" });
++  await flushReports();
++  expect(states().at(-1)).toBe("idle");
++  expect(states()).not.toContain("blocked");
++});
++
++test("V2 child failures preserve pending permissions and forms until replies", async () => {
++  const tui = v2Api();
++  const dispose = (await loadPlugin()).setup(tui.api);
++  activeDisposers.push(dispose);
++  await flushReports();
++  tui.emit("session.execution.started", { sessionID: "a" });
++  tui.emit("permission.asked", { sessionID: "child", id: "p" });
++  tui.emit("form.created", { form: { sessionID: "child", id: "f" } });
++  tui.emit("session.execution.failed", { sessionID: "child" });
++  await flushReports();
++  expect(states().at(-1)).toBe("blocked");
++  tui.emit("permission.replied", { sessionID: "child", requestID: "p" });
++  await flushReports();
++  expect(states().at(-1)).toBe("blocked");
++  tui.emit("form.replied", { sessionID: "child", id: "f" });
++  await flushReports();
++  expect(states().at(-1)).toBe("working");
++});
++
++test("V2 acknowledges failed child deltas and observes later cached retries", async () => {
++  const tui = v2Api();
++  tui.statuses.set("child", "running");
++  const dispose = (await loadPlugin()).setup(tui.api);
++  activeDisposers.push(dispose);
++  await flushReports();
++  requests.length = 0;
++  tui.emit("session.execution.failed", { sessionID: "child" });
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("idle");
++  // Starting the parent must not revive the child's stale running snapshot.
++  tui.emit("session.execution.started", { sessionID: "a" });
++  tui.emit("session.execution.succeeded", { sessionID: "a" });
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("idle");
++  tui.statuses.set("child", "idle");
++  tui.sessions.set("child", { id: "child", parentID: "a", outcome: "failed" });
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("idle");
++  // Cache acknowledgement releases the delta, so a missed retry event is safe.
++  tui.statuses.set("child", "running");
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("working");
++  tui.emit("session.execution.failed", { sessionID: "child" });
++  tui.emit("session.execution.started", { sessionID: "child" });
++  await flushReports();
++  expect(states().at(-1)).toBe("working");
++  expect(states()).not.toContain("blocked");
++});
++
++test("V2 reconnect hydrates child retries after failures without hiding root failures", async () => {
++  const tui = v2Api();
++  const dispose = (await loadPlugin()).setup(tui.api);
++  activeDisposers.push(dispose);
++  await flushReports();
++  tui.emit("session.execution.failed", { sessionID: "child" });
++  await flushReports();
++  expect(states().at(-1)).toBe("idle");
++  tui.statuses.set("child", "running");
++  tui.emit("server.connected");
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(states().at(-1)).toBe("working");
++  expect(states()).not.toContain("blocked");
++  tui.emit("session.execution.failed", { sessionID: "a" });
++  tui.emit("server.connected");
++  await flushReports();
 +  expect(states().at(-1)).toBe("blocked");
 +  tui.emit("session.execution.started", { sessionID: "a" });
 +  await flushReports();
 +  expect(states().at(-1)).toBe("working");
++});
++
++test("V2 switching sessions or selecting a child does not revive child failures", async () => {
++  const tui = v2Api();
++  const dispose = (await loadPlugin()).setup(tui.api);
++  activeDisposers.push(dispose);
++  await flushReports();
++  requests.length = 0;
++  tui.emit("session.execution.failed", { sessionID: "child" });
++  tui.sessions.set("child", { id: "child", parentID: "a", outcome: "failed" });
++  tui.select("b");
++  tui.emit("session.execution.started", { sessionID: "b" });
++  await flushReports();
++  expect(states().at(-1)).toBe("working");
++  tui.select("child");
++  tui.emit("session.execution.succeeded", { sessionID: "a" });
++  await flushReports();
++  expect(states().at(-1)).toBe("idle");
++  expect(requestParam(requests.at(-1), "agent_session_id")).toBe("a");
++  expect(states()).not.toContain("blocked");
 +});
 +
 +test("V2 ignores historical child failures but hydrates the selected root failure", async () => {
@@ -643,7 +764,7 @@
 +}
 --- /dev/null
 +++ b/src/integration/assets/opencode/herdr-v2-socket.test.ts
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,179 @@
 +import { afterEach, expect, test } from "bun:test";
 +import { spawn } from "node:child_process";
 +import { createServer } from "node:net";
@@ -774,6 +895,32 @@
 +  await waitUntil(() => harness.latest("test-pane-1") === "working");
 +  await first.send({ type: "event", name: "session.execution.succeeded", data: { sessionID: "child-a" } });
 +  await waitUntil(() => harness.latest("test-pane-1") === "idle");
++  expect(harness.reports.every((report) => report.params.agent_session_id ===
++    (report.params.pane_id === "test-pane-1" ? "a" : "b"))).toBe(true);
++});
++
++test("real sockets keep child errors nonblocking and root failures pane-local", async () => {
++  const harness = await socketHarness();
++  const first = await worker(harness.socketPath, "test-pane-1", "a");
++  const second = await worker(harness.socketPath, "test-pane-2", "b");
++  await waitUntil(() => harness.latest("test-pane-1") === "idle" && harness.latest("test-pane-2") === "idle");
++  await first.send({ type: "status", sessionID: "a", status: "running" });
++  await waitUntil(() => harness.latest("test-pane-1") === "working");
++  for (const client of [first, second]) {
++    await client.send({ type: "event", name: "session.execution.started", data: { sessionID: "child-a" } });
++    await client.send({ type: "event", name: "session.execution.failed", data: { sessionID: "child-a" } });
++  }
++  await new Promise((resolve) => setTimeout(resolve, 150));
++  expect(harness.latest("test-pane-1")).toBe("working");
++  expect(harness.latest("test-pane-2")).toBe("idle");
++  expect(harness.reports.some((report) => report.params.state === "blocked")).toBe(false);
++  await first.send({ type: "event", name: "session.execution.succeeded", data: { sessionID: "a" } });
++  await waitUntil(() => harness.latest("test-pane-1") === "idle");
++  await first.send({ type: "event", name: "session.execution.failed", data: { sessionID: "a" } });
++  await waitUntil(() => harness.latest("test-pane-1") === "blocked");
++  expect(harness.latest("test-pane-2")).toBe("idle");
++  await first.send({ type: "event", name: "session.execution.started", data: { sessionID: "a" } });
++  await waitUntil(() => harness.latest("test-pane-1") === "working");
 +  expect(harness.reports.every((report) => report.params.agent_session_id ===
 +    (report.params.pane_id === "test-pane-1" ? "a" : "b"))).toBe(true);
 +});

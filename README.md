@@ -125,7 +125,8 @@ enabled in `plugin_settings.json`, and placed in the main bar's center section:
   makes it filled green, any working agent makes it filled yellow, and all idle
   agents make it outlined green. Unknown/unavailable states are outlined gray;
    no agents hides the icon. Click for details; hovering shows no information.
-   The icon uses the `smart_toy` shape. One shared daemon listens
+   The icon uses native QML Pictogrammers robot shapes with 25% smaller eyes,
+   without SVG textures or masks. One shared daemon listens
   to Herdr's Unix-socket events and refreshes snapshots without CLI processes per
   update. It reconnects and resynchronizes automatically, with a 60-second safety
   refresh and 10-second fallback polling when events are unavailable.

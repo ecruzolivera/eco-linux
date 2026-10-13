@@ -89,10 +89,33 @@ test("summary counts all states", () => {
 });
 
 test("robot retains status styling and click details without hover information", () => {
-    const widget = fs.readFileSync(path.join(__dirname, "../HerdrWidget.qml"), "utf8");
-    assert.match(widget, /name: "smart_toy"/);
-    assert.match(widget, /filled: root\.snapshot\.filled/);
-    assert.match(widget, /color: root\.stateColor/);
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "../plugin.json"), "utf8"));
+    const widget = fs.readFileSync(path.join(__dirname, "..", manifest.components.widget), "utf8");
+    assert.match(widget, /import QtQuick\.Shapes/);
+    assert.match(widget, /preferredRendererType: Shape\.CurveRenderer/);
+    assert.match(widget, /fillColor: root\.stateColor/);
+    assert.match(widget, /fillRule: ShapePath\.WindingFill/);
+    assert.match(widget, /scale: robotIcon\.width \/ 24/);
+    assert.doesNotMatch(widget, /DankSVGIcon|colorOverride|MultiEffect|maskSource|sourceSize|SmilingRobot|Canvas \{/);
+    const paths = widget.match(/path: root\.snapshot\.filled\s+\? "([^"]+)"\s+: "([^"]+)"/);
+    assert.ok(paths, "Status must select the filled or outlined path");
+    const eye = (x, y, radius) => `M${x},${y - radius}`
+        + `A${radius},${radius} 0 0,0 ${x - radius},${y}`
+        + `A${radius},${radius} 0 0,0 ${x},${y + radius}`
+        + `A${radius},${radius} 0 0,0 ${x + radius},${y}`
+        + `A${radius},${radius} 0 0,0 ${x},${y - radius}`;
+    for (const [i, name] of ["robot.svg", "robot-outline.svg"].entries()) {
+        const svg = fs.readFileSync(path.join(__dirname, "../icons", name), "utf8");
+        assert.match(svg, /viewBox="0 0 24 24"/);
+        assert.match(svg, /<path d="/);
+        const original = svg.match(/<path d="([^"]+)"/)[1];
+        const expected = i === 0
+            ? original.slice(0, original.indexOf("M7.5,13"))
+                + eye(7.5, 15.5, 2.5 * 0.75) + eye(16.5, 15.5, 2.5 * 0.75) + "Z"
+            : eye(15.5, 15.5, 2 * 0.75) + eye(8.5, 15.5, 2 * 0.75)
+                + original.slice(original.indexOf("M23 15"));
+        assert.equal(paths[i + 1], expected, "Only eye radii shrink by 25%; centers and robot body stay unchanged");
+    }
     assert.match(widget, /Accessible\.onPressAction: root\.triggerPopout\(\)/);
     assert.match(widget, /popoutContent: Component/);
     assert.doesNotMatch(widget, /HerdrTooltip|tooltipDelay|showTooltip|onHoveredChanged/);

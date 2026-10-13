@@ -490,18 +490,17 @@ function setup(api) {
     const status = api.data.session.status(id);
     const outcome = api.data.session.get(id)?.outcome;
     const change = activityChanges.get(id);
-    // Hold event deltas until the cache acknowledges them. A failed descendant
-    // stays actionable until it retries, the root retries, or it is deleted;
-    // historical failures of unrelated past child executions are not blockers.
-    if (change && change.outcome !== "failed" && status === change.status &&
+    // Keep terminal deltas until cache acknowledgement so a failed child cannot
+    // appear running again. Only a failure of the selected root is actionable.
+    if (change && (id !== selected || change.outcome !== "failed") && status === change.status &&
         (change.outcome === undefined || outcome === change.outcome)) {
       activityChanges.delete(id);
     }
     const pending = activityChanges.get(id);
     return {
       running: (pending?.status ?? status) === "running",
-      failed: pending ? pending.outcome === "failed" :
-        id === selected && status !== "running" && outcome === "failed",
+      failed: id === selected && (pending ? pending.outcome === "failed" :
+        status !== "running" && outcome === "failed"),
     };
   }
 
@@ -592,11 +591,11 @@ function setup(api) {
   function receive({ details: event }) {
     if (disposed) return;
     if (event.type === "server.connected") {
-      // Non-failure deltas from the old connection cannot describe executions
-      // that completed or restarted while disconnected. Let the fresh snapshot
-      // reconcile them; events admitted after this boundary still take priority.
+      // Old activity deltas cannot describe executions completed or restarted
+      // while disconnected. Retain only the selected root's actionable failure;
+      // hydrate descendants afresh, including children that previously failed.
       for (const [id, change] of activityChanges) {
-        if (change.outcome !== "failed") activityChanges.delete(id);
+        if (id !== selected || change.outcome !== "failed") activityChanges.delete(id);
       }
       lastQueuedState = undefined;
       syncSelection();
@@ -640,11 +639,6 @@ function setup(api) {
         changeBlocker(id, "form", data.id, false);
         break;
       case "session.execution.started":
-        if (id === selected) {
-          for (const member of members()) {
-            if (activityChanges.get(member)?.outcome === "failed") activityChanges.delete(member);
-          }
-        }
         activityChanges.set(id, { status: "running" });
         break;
       case "session.execution.succeeded":

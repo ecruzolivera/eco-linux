@@ -5,22 +5,30 @@
   "upstream": "https://github.com/herdrdev/herdr/tree/v0.9.3/src/integration/assets/opencode",
   "upstreamSHA256": "50659d47db3cf4e7de3028e56f2666a656efaaddc24711b72f5b6baa9f99c5d3",
   "initialBackup": "/home/ernesto/.config/opencode-migration-backups/herdr-fix-20261011-171423",
-  "patchedSHA256": "714c86f02259ad6ab1726faf270609c5630f2b1c997558aa284c1e8ba1cceb27",
-  "patchSHA256": "88156ecfcbc8a2ff26d58c15b79c91a94cde7307f2c0910a3c5da4861d11caff",
-  "verifiedAt": "2026-10-11T23:28:40.396740+00:00",
+  "patchedSHA256": "4f752061dfd1740478bfdd04044ef9e293fcaa0772f6bbdf88dd76b1f4414760",
+  "patchSHA256": "e3f863e364205c564aac62af06cbab5234e0024e88851f9a47e6a9270d1d5c4f",
+  "verifiedAt": "2026-10-13T06:36:49Z",
   "verification": {
-    "tuiTests": 42,
+    "tuiTests": 48,
     "serverTests": 9,
-    "realSocketTests": 2,
-    "totalTests": 53,
+    "realSocketTests": 3,
+    "deploymentTests": 5,
+    "totalTests": 65,
     "failedTests": 0,
     "v1LogicUnchanged": true,
     "serverPluginUnchanged": true,
     "deploymentSandboxPassed": true,
-    "liveHerdrPane": "blocked: this session is not running inside Herdr; no live pane was controlled",
-    "reproduciblePatchApplyPassed": true
+    "liveHerdrPane": "pending: existing OpenCode TUIs must be restarted safely to load this update; no pane was controlled",
+    "reproduciblePatchApplyPassed": true,
+    "childFailureRegressionReproduced": true,
+    "parentFailuresAndInputBlockersPreserved": true,
+    "previousPatchRestorationSandboxPassed": true
   },
-  "deployedAt": "2026-10-11T23:29:24.971223+00:00",
+  "deployedAt": "2026-10-13T06:38:02.931Z",
+  "previousPatchBackup": "/home/ernesto/.config/opencode-migration-backups/herdr-patch-2026-10-13T06-38-02-931Z",
   "deployedPath": "/home/ernesto/.config/opencode/herdr-tui-session.js",
-  "previousPatchedSHA256": "530aa692f6e93ef4cb885746d604c87825a8726e7c1f43702f71e0499bdb0d72"
+  "previousPatchedSHA256": "530aa692f6e93ef4cb885746d604c87825a8726e7c1f43702f71e0499bdb0d72",
+  "previousPatchedSHA256s": [
+    "714c86f02259ad6ab1726faf270609c5630f2b1c997558aa284c1e8ba1cceb27"
+  ]
 }

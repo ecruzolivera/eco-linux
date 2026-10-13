@@ -19,7 +19,8 @@ if (!["--check", "--apply", "--rollback"].includes(mode)) {
   if (hash(original) !== metadata.upstreamSHA256) throw new Error("The recorded upstream source has changed.");
   if (hash(patched) !== metadata.patchedSHA256) throw new Error("Patched source differs from the verified version; rerun validation before deploying.");
   const current = hash(installed);
-  if (![hash(original), hash(patched), metadata.previousPatchedSHA256].includes(current)) {
+  if (![hash(original), hash(patched), metadata.previousPatchedSHA256,
+    ...(metadata.previousPatchedSHA256s ?? [])].includes(current)) {
     throw new Error("Installed integration differs from both known versions; review it before deploying.");
   }
   if (mode === "--check") {

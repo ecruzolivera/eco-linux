@@ -132,6 +132,32 @@ test("real sockets keep two pane processes isolated while reconciling activity a
     (report.params.pane_id === "test-pane-1" ? "a" : "b"))).toBe(true);
 });
 
+test("real sockets keep child errors nonblocking and root failures pane-local", async () => {
+  const harness = await socketHarness();
+  const first = await worker(harness.socketPath, "test-pane-1", "a");
+  const second = await worker(harness.socketPath, "test-pane-2", "b");
+  await waitUntil(() => harness.latest("test-pane-1") === "idle" && harness.latest("test-pane-2") === "idle");
+  await first.send({ type: "status", sessionID: "a", status: "running" });
+  await waitUntil(() => harness.latest("test-pane-1") === "working");
+  for (const client of [first, second]) {
+    await client.send({ type: "event", name: "session.execution.started", data: { sessionID: "child-a" } });
+    await client.send({ type: "event", name: "session.execution.failed", data: { sessionID: "child-a" } });
+  }
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  expect(harness.latest("test-pane-1")).toBe("working");
+  expect(harness.latest("test-pane-2")).toBe("idle");
+  expect(harness.reports.some((report) => report.params.state === "blocked")).toBe(false);
+  await first.send({ type: "event", name: "session.execution.succeeded", data: { sessionID: "a" } });
+  await waitUntil(() => harness.latest("test-pane-1") === "idle");
+  await first.send({ type: "event", name: "session.execution.failed", data: { sessionID: "a" } });
+  await waitUntil(() => harness.latest("test-pane-1") === "blocked");
+  expect(harness.latest("test-pane-2")).toBe("idle");
+  await first.send({ type: "event", name: "session.execution.started", data: { sessionID: "a" } });
+  await waitUntil(() => harness.latest("test-pane-1") === "working");
+  expect(harness.reports.every((report) => report.params.agent_session_id ===
+    (report.params.pane_id === "test-pane-1" ? "a" : "b"))).toBe(true);
+});
+
 test("real sockets retry home settlement and stop reporting after disposal", async () => {
   const harness = await socketHarness();
   const client = await worker(harness.socketPath, "test-pane", "a");
