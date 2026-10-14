@@ -114,6 +114,31 @@ class InstallerTests(unittest.TestCase):
                     self.assertFalse((inner / 'unexpected').exists())
                     self.assertIn('No temporary sudo grants', result.stderr)
 
+    def test_aur_cleanbuild_choice_is_preset_but_review_stdin_stays_interactive(self):
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            run_user() {{
+              printf '%s\\n' "$@"
+              read -r review
+              printf 'review:%s\\n' "$review"
+            }}
+            install_aur brave-bin worktrunk-bin
+        ''', input='approved-review\n')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), [
+            'yay', '-S', '--needed', '--aur', '--answerclean', 'None',
+            'brave-bin', 'worktrunk-bin', 'review:approved-review',
+        ])
+
+    def test_empty_aur_list_does_not_invoke_yay(self):
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            run_user() {{ printf 'unexpected invocation\\n'; return 98; }}
+            install_aur
+        ''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '')
+
     def test_missing_yay_branch_scopes_cwd_and_cleanup(self):
         log = self.root / 'build-path'
         result = self.bash(f'''

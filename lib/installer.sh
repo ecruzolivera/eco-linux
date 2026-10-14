@@ -39,7 +39,8 @@ read_manifest() {
 install_aur() {
   (($#)) || return 0
   # No --noconfirm: review package recipes and use the user's ordinary sudo.
-  run_user yay -S --needed --aur "$@"
+  # Keep cached build files without pausing at yay's housekeeping menu.
+  run_user yay -S --needed --aur --answerclean None "$@"
 }
 
 select_nvidia() {
