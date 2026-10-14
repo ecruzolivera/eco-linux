@@ -16,7 +16,7 @@ fi
   read -r -p 'Build this reviewed yay recipe? [y/N] ' answer
   [[ $answer == y || $answer == Y ]] || error 'yay build declined'
   cd "$build/source"
-  run_user makepkg --syncdeps --cleanbuild
+  run_user makepkg --syncdeps --cleanbuild --noconfirm
   mapfile -t artifacts < <(run_user makepkg --packagelist)
   ((${#artifacts[@]})) || error 'No yay artifacts produced'
   pacman -U --needed --noconfirm "${artifacts[@]}"

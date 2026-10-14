@@ -17,7 +17,7 @@ trap 'code=$?; if ((code)); then printf "INCOMPLETE: %s (exit %s)\n" "$stage" "$
 printf 'User bootstrap started %s\n' "$(date -Iseconds)" > "$report"
 mkdir -p "$HOME/Work/Personal" "$HOME/Work/Forme"
 mise trust "$HOME/.config/mise/config.toml"
-mise install
+timeout 1800 mise install
 runtime_environment=$(mise env --shell bash)
 eval "$runtime_environment"
 for tool in java javac node npm npx bun go; do
@@ -33,12 +33,12 @@ bun --version >> "$report"
 go version >> "$report"
 stage=rust-toolchain
 # The reviewed git-status plugin builds with Cargo, including in the core profile.
-rustup show active-toolchain >/dev/null 2>&1 || rustup default stable
+rustup show active-toolchain >/dev/null 2>&1 || timeout 300 rustup default stable
 # The Neovim Rust pack starts rust-analyzer directly, outside Mason.
-rustup component add rust-analyzer rust-src
-rust-analyzer --version >> "$report"
+timeout 900 rustup component add rust-analyzer rust-src
+timeout 60 rust-analyzer --version >> "$report"
 stage=neovim-restoration
-python3 "$REPO/lib/check-nvim-worktrees.py"
+timeout 60 python3 "$REPO/lib/check-nvim-worktrees.py"
 expected_lock=$(mktemp "$state/nvim-lock.XXXXXXXX")
 cp "$HOME/.config/nvim/lazy-lock.json" "$expected_lock"
 timeout 1200 nvim --headless '+Lazy! restore' '+qa'
@@ -53,11 +53,11 @@ opencode_version=$(opencode --version)
   exit 1
 }
 stage=herdr-plugins
-python3 "$REPO/lib/bootstrap-herdr.py"
+timeout 600 python3 "$REPO/lib/bootstrap-herdr.py"
 stage=herdr-patch
-node "$HOME/.local/share/herdr-opencode-fix/deploy.mjs" --check
-node "$HOME/.local/share/herdr-opencode-fix/deploy.mjs" --apply
+timeout 120 node "$HOME/.local/share/herdr-opencode-fix/deploy.mjs" --check
+timeout 120 node "$HOME/.local/share/herdr-opencode-fix/deploy.mjs" --apply
 stage=command-coverage
-python3 "$REPO/tests/package-coverage.py" --profile "${ECO_APPS:-personal}" --commands >> "$report"
+timeout 120 python3 "$REPO/tests/package-coverage.py" --profile "${ECO_APPS:-personal}" --commands >> "$report"
 printf 'PASS: runtime/editor/integration bootstrap. Sign in to accounts separately; restore data and licensed apps manually.\n' >> "$report"
 cat "$report"

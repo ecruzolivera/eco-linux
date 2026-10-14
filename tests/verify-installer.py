@@ -114,7 +114,7 @@ class InstallerTests(unittest.TestCase):
                     self.assertFalse((inner / 'unexpected').exists())
                     self.assertIn('No temporary sudo grants', result.stderr)
 
-    def test_aur_cleanbuild_choice_is_preset_but_review_stdin_stays_interactive(self):
+    def test_aur_housekeeping_menus_are_preset_and_review_stdin_stays_interactive(self):
         result = self.bash(f'''
             source "{REPO}/lib/installer.sh"
             run_user() {{
@@ -126,7 +126,8 @@ class InstallerTests(unittest.TestCase):
         ''', input='approved-review\n')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines(), [
-            'yay', '-S', '--needed', '--aur', '--answerclean', 'None',
+            'env', 'PAGER=cat', 'GIT_PAGER=cat', 'yay', '-S', '--needed', '--aur',
+            '--answerclean', 'None', '--answerdiff', 'All', '--answeredit', 'None', '--noremovemake',
             'brave-bin', 'worktrunk-bin', 'review:approved-review',
         ])
 
@@ -570,6 +571,11 @@ esac
         self.assertIn('sudo -l -U "$REAL_USER"', scripts)
         # The pinned pair is reviewed once instead of once per recipe.
         self.assertEqual(scripts.count('Build all reviewed integration recipes?'), 1)
+        # AUR dependency installs and yay housekeeping must never wait on a menu or pager.
+        self.assertNotRegex(scripts, r'makepkg --syncdeps --cleanbuild(?!\s+--noconfirm)')
+        self.assertIn('--answerdiff All', (REPO / 'lib/installer.sh').read_text())
+        self.assertIn('--noremovemake', (REPO / 'lib/installer.sh').read_text())
+        self.assertIn('PAGER=cat GIT_PAGER=cat', (REPO / 'lib/installer.sh').read_text())
 
     def herdr_module(self):
         spec = importlib.util.spec_from_file_location('eco_bootstrap_herdr', REPO / 'lib/bootstrap-herdr.py')
@@ -624,6 +630,10 @@ esac
         config = self.home / '.config/nvim'
         config.mkdir(parents=True)
         (config / 'lazy-lock.json').write_text('{}')
+        ltex = self.home / '.local/share/nvim/mason/bin/ltex-ls-plus'
+        ltex.parent.mkdir(parents=True)
+        ltex.write_text('#!/bin/sh\nexit 0\n')
+        ltex.chmod(0o755)
         mocks = f'''
           id() {{ printf '1000\\n'; }}
           mise() {{
@@ -650,7 +660,7 @@ esac
             printf 'rust-analyzer mock\n'
             return {analyzer_exit}
           }}
-          nvim() {{ :; }}; timeout() {{ :; }}
+          nvim() {{ :; }}; timeout() {{ shift; "$@"; }}
           herdr() {{ printf 'herdr 0.9.3\\n'; }}
           opencode() {{ printf 'opencode v2.0.27\\n'; }}
           python3() {{ printf 'python:%s\\n' "$1" >> "{calls}"; }}

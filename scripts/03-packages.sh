@@ -45,7 +45,7 @@ if ((${#PENDING_PINS[@]})); then
       read -r name revision version <<< "$pin"
       (
         cd "$build/$name"
-        run_user makepkg --syncdeps --cleanbuild
+        run_user makepkg --syncdeps --cleanbuild --noconfirm
         mapfile -t artifacts < <(run_user makepkg --packagelist)
         ((${#artifacts[@]})) || error "No pinned package artifacts produced: $name"
         pacman -U --needed --noconfirm "${artifacts[@]}"

@@ -38,9 +38,11 @@ read_manifest() {
 
 install_aur() {
   (($#)) || return 0
-  # No --noconfirm: review package recipes and use the user's ordinary sudo.
-  # Keep cached build files without pausing at yay's housekeeping menu.
-  run_user yay -S --needed --aur --answerclean None "$@"
+  # No --noconfirm: the recipe diff and the final install confirmation stay explicit.
+  # Preset yay's housekeeping menus and page diffs straight to the terminal so the
+  # install cannot stall at a menu or pager it never displays.
+  run_user env PAGER=cat GIT_PAGER=cat yay -S --needed --aur \
+    --answerclean None --answerdiff All --answeredit None --noremovemake "$@"
 }
 
 select_nvidia() {

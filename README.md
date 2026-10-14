@@ -26,9 +26,12 @@ GitHub command can use them.
 There are no installation choices to configure. It installs the full desktop,
 personal applications, dotfiles, runtimes, editor tools and Herdr integrations.
 Official repository packages install without per-package confirmation. Yay's
-clean-build menu automatically chooses “None” (keeps cached build files), without
-changing your saved yay settings. AUR recipe review and sudo remain interactive;
-the pinned integration recipes are shown together for a single confirmation.
+housekeeping menus are preset (keep cached builds, print all recipe diffs, no
+editor, keep make dependencies) and diffs print directly instead of opening a
+pager, so installation cannot stall at a menu it never shows. AUR recipe review,
+the recipe/install confirmations and sudo remain interactive and without any
+passwordless grant; the pinned integration recipes are shown together for a
+single confirmation. Network-heavy stages run under timeouts.
 
 - Changed shipped configuration files are backed up under
   `~/.local/state/eco-linux/config-backups/` before replacement. Unrelated and

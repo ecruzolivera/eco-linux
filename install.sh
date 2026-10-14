@@ -39,7 +39,7 @@ main() {
     trap 'rm -rf -- "$resources"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    git clone --depth 1 --branch master https://github.com/ecruzolivera/eco-linux.git "$resources/repo"
+    GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch master https://github.com/ecruzolivera/eco-linux.git "$resources/repo"
     [[ -f "$resources/repo/install.sh" && -f "$resources/repo/scripts/00-checks.sh" && -f "$resources/repo/lib/installer.sh" ]] || error 'Downloaded repository is not an eco-linux installer'
     revision=$(git -C "$resources/repo" rev-parse HEAD)
     info "Installing eco-linux revision $revision"
