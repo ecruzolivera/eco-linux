@@ -27,7 +27,8 @@ There are no installation choices to configure. It installs the full desktop,
 personal applications, dotfiles, runtimes, editor tools and Herdr integrations.
 Running the command authorizes the full setup: official/AUR packages, pinned
 integrations, Herdr plugins and runtimes install without confirmation prompts.
-AUR recipes/diffs print without opening an editor or pager, and yay batches
+Yay's diff/editor menus are disabled, including its post-diff approval that
+ignores `--noconfirm`. Bootstrap and pinned recipes still print, and yay batches
 package installs where dependencies permit. Declared PGP keys are imported
 automatically; checksum and signature verification remain enabled. Conflicts
 are not forcibly accepted, and failures stop the installer with an error.

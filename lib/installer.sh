@@ -40,9 +40,10 @@ install_aur() {
   (($#)) || return 0
   # Running the installer authorizes the manifest. Never open an editor/pager or
   # force conflict removals, even if the user's saved yay settings enable them.
+  # Yay's post-diff approval ignores --noconfirm, so disable that entire path.
   run_user env PAGER=cat GIT_PAGER=cat yay -S --needed --aur --noconfirm \
-    --answerclean None --answerdiff All --answeredit None --noremovemake \
-    --editmenu=false --useask=false --pgpfetch --batchinstall "$@"
+    --answerclean None --answerdiff None --answeredit None --noremovemake \
+    --diffmenu=false --editmenu=false --useask=false --pgpfetch --batchinstall "$@"
 }
 
 select_nvidia() {

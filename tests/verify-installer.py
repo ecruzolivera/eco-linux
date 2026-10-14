@@ -125,10 +125,63 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines(), [
             'env', 'PAGER=cat', 'GIT_PAGER=cat', 'yay', '-S', '--needed', '--aur', '--noconfirm',
-            '--answerclean', 'None', '--answerdiff', 'All', '--answeredit', 'None', '--noremovemake',
-            '--editmenu=false', '--useask=false', '--pgpfetch', '--batchinstall',
+            '--answerclean', 'None', '--answerdiff', 'None', '--answeredit', 'None', '--noremovemake',
+            '--diffmenu=false', '--editmenu=false', '--useask=false', '--pgpfetch', '--batchinstall',
             'brave-bin', 'worktrunk-bin',
         ])
+
+    def test_aur_post_diff_approval_is_unreachable_with_no_terminal_input(self):
+        bins = self.root / 'aur-cli'
+        bins.mkdir()
+        yay = bins / 'yay'
+        # Model the upstream DiffFn/ContinueTask trap, not package installation:
+        # https://github.com/Jguer/yay/blob/v13.0.1/pkg/menus/diff_menu.go
+        # The post-diff check passes noConfirm=false even with --noconfirm.
+        yay.write_text('''#!/bin/bash
+set -euo pipefail
+[[ -t 0 && -t 1 ]]
+# Simulate saved settings that enable both review menus.
+diffmenu=true answerdiff=All editmenu=true noconfirm=false
+while (($#)); do
+  case $1 in
+    --noconfirm) noconfirm=true;;
+    --answerdiff) answerdiff=$2; shift;;
+    --diffmenu=false) diffmenu=false;;
+    --editmenu=false) editmenu=false;;
+  esac
+  shift
+done
+if $diffmenu && [[ $answerdiff == All ]]; then
+  printf ':: Proceed with install? [Y/n] '
+  # Bound the simulated wait so regressions fail instead of hanging tests.
+  read -r -t 1 answer || exit 87
+fi
+$noconfirm && ! $editmenu || exit 98
+printf 'aur-complete\\n'
+''')
+        yay.chmod(0o755)
+        env = {**BASE_ENV, 'PATH': f'{bins}:/usr/bin:/bin'}
+        for invocation, expected in [
+                ('yay -S --noconfirm --answerdiff All --editmenu=false brave-bin', 87),
+                ('install_aur brave-bin worktrunk-bin', 0)]:
+            with self.subTest(invocation=invocation):
+                script = f'''
+main() {{
+  exec </dev/tty
+  source "{REPO}/lib/installer.sh"
+  run_user() {{ "$@"; }}
+  {invocation}
+}}
+main; exit $?
+'''
+                code, output = self.run_piped_bootstrap(env, script=script, terminal_input=None)
+                self.assertEqual(code, expected, output)
+                if expected == 0:
+                    self.assertIn('aur-complete', output)
+                    self.assertNotIn('Proceed with install?', output)
+                else:
+                    self.assertIn('Proceed with install?', output)
+                    self.assertNotIn('aur-complete', output)
 
     def test_empty_aur_list_does_not_invoke_yay(self):
         result = self.bash(f'''
@@ -483,7 +536,7 @@ esac
             env.pop(name, None)
         return repo, env
 
-    def run_piped_bootstrap(self, env, script=None, cwd=None):
+    def run_piped_bootstrap(self, env, script=None, cwd=None, terminal_input=b'approve\n'):
         """A real stdin pipe plus a controlling PTY; every privileged command is mocked."""
         master, slave = pty.openpty()
 
@@ -498,7 +551,8 @@ esac
         try:
             process.stdin.write((script if script is not None else (REPO / 'install.sh').read_text()).encode())
             process.stdin.close()
-            os.write(master, b'approve\n')
+            if terminal_input is not None:
+                os.write(master, terminal_input)
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
                 ready, _, _ = select.select([master], [], [], max(0, deadline - time.monotonic()))
@@ -591,7 +645,8 @@ esac
         self.assertNotRegex(shell_sources, r'\bread\b[^\n]*\s-[^\s]*p(?:\s|$)')
         # AUR dependency installs and yay housekeeping must never wait on a menu or pager.
         self.assertNotRegex(scripts, r'makepkg --syncdeps --cleanbuild(?!\s+--noconfirm)')
-        self.assertIn('--answerdiff All', (REPO / 'lib/installer.sh').read_text())
+        self.assertIn('--answerdiff None', (REPO / 'lib/installer.sh').read_text())
+        self.assertIn('--diffmenu=false', (REPO / 'lib/installer.sh').read_text())
         self.assertIn('--noremovemake', (REPO / 'lib/installer.sh').read_text())
         self.assertIn('PAGER=cat GIT_PAGER=cat', (REPO / 'lib/installer.sh').read_text())
         self.assertNotRegex(shell_sources, r'--skip(checksums|pgpcheck|integ)|--overwrite')
