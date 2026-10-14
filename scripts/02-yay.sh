@@ -11,10 +11,8 @@ fi
   trap 'rm -rf -- "$build"' EXIT
   chown "$REAL_UID:$REAL_GID" "$build"
   run_user git clone https://aur.archlinux.org/yay-bin.git "$build/source"
-  info 'Review yay-bin before executing its PKGBUILD'
+  info 'Installing yay-bin automatically; recipe follows'
   cat "$build/source/PKGBUILD"
-  read -r -p 'Build this reviewed yay recipe? [y/N] ' answer
-  [[ $answer == y || $answer == Y ]] || error 'yay build declined'
   cd "$build/source"
   run_user makepkg --syncdeps --cleanbuild --noconfirm
   mapfile -t artifacts < <(run_user makepkg --packagelist)

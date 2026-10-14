@@ -114,21 +114,20 @@ class InstallerTests(unittest.TestCase):
                     self.assertFalse((inner / 'unexpected').exists())
                     self.assertIn('No temporary sudo grants', result.stderr)
 
-    def test_aur_housekeeping_menus_are_preset_and_review_stdin_stays_interactive(self):
+    def test_aur_install_is_noninteractive_without_changing_saved_settings(self):
         result = self.bash(f'''
             source "{REPO}/lib/installer.sh"
             run_user() {{
               printf '%s\\n' "$@"
-              read -r review
-              printf 'review:%s\\n' "$review"
             }}
             install_aur brave-bin worktrunk-bin
-        ''', input='approved-review\n')
+        ''', input='')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.splitlines(), [
-            'env', 'PAGER=cat', 'GIT_PAGER=cat', 'yay', '-S', '--needed', '--aur',
+            'env', 'PAGER=cat', 'GIT_PAGER=cat', 'yay', '-S', '--needed', '--aur', '--noconfirm',
             '--answerclean', 'None', '--answerdiff', 'All', '--answeredit', 'None', '--noremovemake',
-            'brave-bin', 'worktrunk-bin', 'review:approved-review',
+            '--editmenu=false', '--useask=false', '--pgpfetch', '--batchinstall',
+            'brave-bin', 'worktrunk-bin',
         ])
 
     def test_empty_aur_list_does_not_invoke_yay(self):
@@ -140,6 +139,20 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, '')
 
+    def test_normal_user_commands_disable_git_credential_prompts(self):
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            REAL_USER=target REAL_HOME="{self.home}"
+            sudo() {{
+              [[ ${{*:1:3}} == '-u target -H' ]] || return 98
+              shift 3
+              "$@"
+            }}
+            export GIT_TERMINAL_PROMPT=1
+            run_user bash -c '[[ $GIT_TERMINAL_PROMPT == 0 && $HOME == "$1" && $USER == target ]]' bash "$REAL_HOME"
+        ''', input='')
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_missing_yay_branch_scopes_cwd_and_cleanup(self):
         log = self.root / 'build-path'
         result = self.bash(f'''
@@ -148,11 +161,13 @@ class InstallerTests(unittest.TestCase):
             REAL_UID=1000 REAL_GID=1000
             command() {{ if [[ $* == '-v yay' ]]; then return 1; fi; builtin command "$@"; }}
             chown() {{ :; }}
-            pacman() {{ [[ $1 == -U ]]; }}
+            pacman() {{ [[ ${{*:1:3}} == '-U --needed --noconfirm' ]]; }}
             run_user() {{
               case $1 in
                 git) mkdir -p "${{@: -1}}"; printf '# inert recipe\\n' > "${{@: -1}}/PKGBUILD"; printf '%s\\n' "${{@: -1}}" > "{log}";;
-                makepkg) if [[ $2 == --packagelist ]]; then printf '%s\\n' "$PWD/yay.pkg.tar.zst"; else touch yay.pkg.tar.zst; fi;;
+                makepkg) if [[ $2 == --packagelist ]]; then printf '%s\\n' "$PWD/yay.pkg.tar.zst"
+                         else [[ $* == 'makepkg --syncdeps --cleanbuild --noconfirm' ]] || return 98
+                              touch yay.pkg.tar.zst; fi;;
                 *) return 98;;
               esac
             }}
@@ -160,7 +175,7 @@ class InstallerTests(unittest.TestCase):
             before=$PWD
             source "{REPO}/scripts/02-yay.sh"
             [[ $PWD == "$before" ]]
-        ''', input='y\n')
+        ''', input='')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(Path(log.read_text().strip()).parent.exists())
 
@@ -279,7 +294,7 @@ class InstallerTests(unittest.TestCase):
         self.assertIn('graphics changes skipped', result.stderr)
         self.assertEqual(result.stdout.strip(), 'continued')
 
-    def test_pinned_integration_prompts_read_terminal_not_manifest(self):
+    def test_pinned_integrations_install_with_closed_stdin(self):
         repo = self.root / 'pinned-repo'
         shutil.copytree(REPO / 'packages', repo / 'packages')
         lock = repo / 'packages/integrations.lock'
@@ -306,40 +321,41 @@ class InstallerTests(unittest.TestCase):
                   fi;;
                 makepkg)
                   name=${{PWD##*/}}
-                  if [[ $2 == --packagelist ]]; then printf '%s\\n' "$PWD/$name.pkg.tar.zst"; fi;;
+                  if [[ $2 == --packagelist ]]; then printf '%s\\n' "$PWD/$name.pkg.tar.zst"
+                  else [[ $* == 'makepkg --syncdeps --cleanbuild --noconfirm' ]] || return 98; fi;;
                 *) return 98;;
               esac
             }}
             pacman() {{
               case $1 in
-                -S) return 0;;
+                -S) [[ ${{*:1:3}} == '-S --needed --noconfirm' ]];;
                 -Q) [[ -f "{marker}/installed-$2" ]] || return 1
                     case $2 in
                       herdr-bin) printf 'herdr-bin 0.9.3-1\\n';;
                       opencode-beta) printf 'opencode-beta 2.0.26-1\\n';;
                     esac;;
-                -U) touch "{marker}/installed-${{PWD##*/}}";;
+                -U) [[ ${{*:1:3}} == '-U --needed --noconfirm' ]] || return 98
+                    touch "{marker}/installed-${{PWD##*/}}";;
                 *) return 98;;
               esac
             }}
             cd "{self.root}"
             source "{REPO}/scripts/03-packages.sh"
             printf 'complete\\n' >> "{marker}/done"
-        ''', input='y\n')
+        ''', input='')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((marker / 'installed-herdr-bin').exists())
         self.assertTrue((marker / 'installed-opencode-beta').exists())
         self.assertEqual((marker / 'done').read_text().strip(), 'complete')
         output = result.stdout + result.stderr
-        # Both pinned recipes are fetched and reviewed before a single decision;
-        # providing exactly one confirmation proves only one prompt is required.
+        # Recipes remain visible, but EOF on stdin must not stop installation.
         for name in ['herdr-bin 0.9.3-1', 'opencode-beta 2.0.26-1']:
             self.assertIn(f'reviewed integration recipe: {name}', output)
 
-    def test_pinned_integration_decline_stops_before_any_build(self):
-        repo = self.root / 'declined-repo'
+    def test_pinned_integration_build_failure_stops_before_installation(self):
+        repo = self.root / 'failed-repo'
         shutil.copytree(REPO / 'packages', repo / 'packages')
-        marker = self.root / 'declined-markers'
+        marker = self.root / 'failed-markers'
         marker.mkdir()
         result = self.bash(f'''
             INSTALLER_DIR="{repo}" ECO_APPS=personal
@@ -358,7 +374,8 @@ class InstallerTests(unittest.TestCase):
                        -C) :;;
                        *) return 98;;
                      esac;;
-                makepkg) touch "{marker}/built-any";;
+                makepkg) [[ $* == 'makepkg --syncdeps --cleanbuild --noconfirm' ]] || return 98
+                         touch "{marker}/built-any"; return 43;;
                 *) return 98;;
               esac
             }}
@@ -373,10 +390,9 @@ class InstallerTests(unittest.TestCase):
             cd "{self.root}"
             source "{REPO}/scripts/03-packages.sh"
             printf 'complete\\n' >> "{marker}/done"
-        ''', input='n\n')
-        self.assertEqual(result.returncode, 42, result.stderr)
-        self.assertIn('declined', result.stderr)
-        self.assertFalse((marker / 'built-any').exists())
+        ''', input='')
+        self.assertEqual(result.returncode, 43, result.stderr)
+        self.assertTrue((marker / 'built-any').exists())
         self.assertFalse((marker / 'installed-any').exists())
         self.assertFalse((marker / 'done').exists())
 
@@ -569,13 +585,16 @@ esac
         # Preflight must not refresh sudo interactively; it inspects the policy as root.
         self.assertNotIn('sudo -v', scripts)
         self.assertIn('sudo -l -U "$REAL_USER"', scripts)
-        # The pinned pair is reviewed once instead of once per recipe.
-        self.assertEqual(scripts.count('Build all reviewed integration recipes?'), 1)
+        # No installer-authored approval prompt may return in any module.
+        shell_sources = scripts + (REPO / 'install.sh').read_text() + '\n'.join(
+            path.read_text() for path in (REPO / 'lib').glob('*.sh'))
+        self.assertNotRegex(shell_sources, r'\bread\b[^\n]*\s-[^\s]*p(?:\s|$)')
         # AUR dependency installs and yay housekeeping must never wait on a menu or pager.
         self.assertNotRegex(scripts, r'makepkg --syncdeps --cleanbuild(?!\s+--noconfirm)')
         self.assertIn('--answerdiff All', (REPO / 'lib/installer.sh').read_text())
         self.assertIn('--noremovemake', (REPO / 'lib/installer.sh').read_text())
         self.assertIn('PAGER=cat GIT_PAGER=cat', (REPO / 'lib/installer.sh').read_text())
+        self.assertNotRegex(shell_sources, r'--skip(checksums|pgpcheck|integ)|--overwrite')
 
     def herdr_module(self):
         spec = importlib.util.spec_from_file_location('eco_bootstrap_herdr', REPO / 'lib/bootstrap-herdr.py')
@@ -615,15 +634,44 @@ esac
                 module.bootstrap()
             run.assert_not_called()
 
-    def test_declined_plugin_install_is_incomplete(self):
+    def test_missing_plugin_registration_is_incomplete_despite_auto_approval(self):
         module = self.herdr_module()
         plugins = {'eco.ws-number': {'plugin_root': str(self.home / '.config/herdr/plugins/local/eco-ws-number')}}
         with mock.patch.object(module.Path, 'home', return_value=self.home), \
                 mock.patch.object(module, 'installed', return_value=plugins), \
                 mock.patch.object(module.subprocess, 'run') as run:
-            with self.assertRaisesRegex(RuntimeError, 'declined'):
+            with self.assertRaisesRegex(RuntimeError, 'did not register the expected revision'):
                 module.bootstrap()
-            self.assertEqual(run.call_args.args[0], ['herdr', 'plugin', 'install', module.PLUGINS[0][1], '--ref', module.PLUGINS[0][2]])
+            self.assertEqual(run.call_args.args[0], ['herdr', 'plugin', 'install', module.PLUGINS[0][1], '--ref', module.PLUGINS[0][2], '--yes'])
+
+    def test_all_pinned_plugins_are_auto_approved_and_verified(self):
+        module = self.herdr_module()
+        plugins = {'eco.ws-number': {'plugin_root': str(self.home / '.config/herdr/plugins/local/eco-ws-number')}}
+        snapshots = [dict(plugins)]
+        for plugin_id, repository, revision in module.PLUGINS:
+            plugins[plugin_id] = {'source': {'resolved_commit': revision}}
+            snapshots.append(dict(plugins))
+        with mock.patch.object(module.Path, 'home', return_value=self.home), \
+                mock.patch.object(module, 'installed', side_effect=snapshots) as installed, \
+                mock.patch.object(module.subprocess, 'run') as run:
+            module.bootstrap()
+            self.assertEqual(installed.call_count, 1 + len(module.PLUGINS))
+            self.assertEqual(run.call_args_list, [
+                mock.call(['herdr', 'plugin', 'install', repository, '--ref', revision, '--yes'],
+                          check=True, timeout=600)
+                for _, repository, revision in module.PLUGINS
+            ])
+
+    def test_auto_approved_plugin_with_wrong_revision_is_rejected(self):
+        module = self.herdr_module()
+        local = {'eco.ws-number': {'plugin_root': str(self.home / '.config/herdr/plugins/local/eco-ws-number')}}
+        wrong = {**local, module.PLUGINS[0][0]: {'source': {'resolved_commit': 'unexpected'}}}
+        with mock.patch.object(module.Path, 'home', return_value=self.home), \
+                mock.patch.object(module, 'installed', side_effect=[local, wrong]), \
+                mock.patch.object(module.subprocess, 'run') as run:
+            with self.assertRaisesRegex(RuntimeError, 'did not register the expected revision'):
+                module.bootstrap()
+            self.assertEqual(run.call_count, 1)
 
     def mock_user_setup(self, has_toolchain=True, component_exit=0, analyzer_exit=0):
         calls = self.root / 'user-calls'
@@ -638,7 +686,7 @@ esac
           id() {{ printf '1000\\n'; }}
           mise() {{
             case $1 in env) printf ':\\n';; where) printf '/fake/java\\n';;
-              *) printf 'mise:%s\\n' "$1" >> "{calls}";; esac
+              *) printf 'mise:%s\\n' "$*" >> "{calls}";; esac
           }}
           java() {{ printf 'openjdk version "21.0.12"\\n' >&2; }}
           javac() {{ :; }}; npm() {{ :; }}; npx() {{ :; }}
@@ -672,6 +720,7 @@ esac
         result, calls = self.mock_user_setup()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Unreviewed integration versions', result.stderr)
+        self.assertIn('mise:install --yes', calls.read_text())
         self.assertNotIn('bootstrap-herdr.py', calls.read_text())
         self.assertNotIn('node:--apply', calls.read_text())
         self.assertIn('INCOMPLETE: integration-version-check', (self.home / '.local/state/eco-linux/user-setup.txt').read_text())

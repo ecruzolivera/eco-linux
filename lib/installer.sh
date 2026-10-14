@@ -21,7 +21,7 @@ select_network() {
 run_user() {
   sudo -u "$REAL_USER" -H env -u XDG_CONFIG_HOME -u XDG_DATA_HOME -u XDG_STATE_HOME -u XDG_CACHE_HOME \
     -u MISE_CONFIG_FILE -u MISE_DATA_DIR -u JAVA_HOME \
-    HOME="$REAL_HOME" USER="$REAL_USER" LOGNAME="$REAL_USER" "$@"
+    HOME="$REAL_HOME" USER="$REAL_USER" LOGNAME="$REAL_USER" GIT_TERMINAL_PROMPT=0 "$@"
 }
 
 read_manifest() {
@@ -38,11 +38,11 @@ read_manifest() {
 
 install_aur() {
   (($#)) || return 0
-  # No --noconfirm: the recipe diff and the final install confirmation stay explicit.
-  # Preset yay's housekeeping menus and page diffs straight to the terminal so the
-  # install cannot stall at a menu or pager it never displays.
-  run_user env PAGER=cat GIT_PAGER=cat yay -S --needed --aur \
-    --answerclean None --answerdiff All --answeredit None --noremovemake "$@"
+  # Running the installer authorizes the manifest. Never open an editor/pager or
+  # force conflict removals, even if the user's saved yay settings enable them.
+  run_user env PAGER=cat GIT_PAGER=cat yay -S --needed --aur --noconfirm \
+    --answerclean None --answerdiff All --answeredit None --noremovemake \
+    --editmenu=false --useask=false --pgpfetch --batchinstall "$@"
 }
 
 select_nvidia() {

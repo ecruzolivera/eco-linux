@@ -7,6 +7,7 @@ cd "$HOME"
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
 export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
 export XDG_STATE_HOME="$HOME/.local/state" XDG_CACHE_HOME="$HOME/.cache"
+export GIT_TERMINAL_PROMPT=0
 state=$HOME/.local/state/eco-linux
 mkdir -p "$state"
 chmod 0700 "$state"
@@ -17,7 +18,7 @@ trap 'code=$?; if ((code)); then printf "INCOMPLETE: %s (exit %s)\n" "$stage" "$
 printf 'User bootstrap started %s\n' "$(date -Iseconds)" > "$report"
 mkdir -p "$HOME/Work/Personal" "$HOME/Work/Forme"
 mise trust "$HOME/.config/mise/config.toml"
-timeout 1800 mise install
+timeout 1800 mise install --yes
 runtime_environment=$(mise env --shell bash)
 eval "$runtime_environment"
 for tool in java javac node npm npx bun go; do

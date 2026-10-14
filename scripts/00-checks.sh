@@ -9,7 +9,7 @@ IFS=: read -r _ _ REAL_UID REAL_GID _ REAL_HOME _ <<< "$account"
 [[ $REAL_UID != 0 && $REAL_HOME == /* && -d $REAL_HOME ]] || error 'Invalid target user/home'
 [[ $(stat -c %u "$REAL_HOME") == "$REAL_UID" ]] || error 'Target user must own their home directory'
 USER_CONFIG=$REAL_HOME/.config
-[[ -t 0 && -t 1 ]] || error 'Use an interactive terminal (AUR review/sudo requires it)'
+[[ -t 0 && -t 1 ]] || error 'Use an interactive terminal for sudo authentication'
 for command in sudo pacman getent curl tar git awk grep sed cp find mktemp systemctl; do
   # git is installed in phase 01; it is not a prerequisite on minimal Arch.
   [[ $command != git ]] || continue

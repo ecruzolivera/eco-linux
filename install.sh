@@ -13,7 +13,7 @@ Usage: curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/maste
 Installs the full desktop, applications, configuration and user tools. No options needed.
 Run in a terminal as a normal sudo-capable user on bootable x86_64 Arch with internet,
 curl and Git. Changed shipped configurations are backed up before replacement.
-Sudo and AUR package review remain interactive. Disks and bootloader are untouched.
+Installation approvals are automatic; sudo may request your password. Disks and bootloader are untouched.
 EOF
 }
 
@@ -31,8 +31,8 @@ main() {
   if [[ -z $SCRIPT_DIR || ! -f "$SCRIPT_DIR/scripts/00-checks.sh" || ! -f "$SCRIPT_DIR/lib/installer.sh" ]]; then
     [[ $(id -u) != 0 ]] || error 'Run the bootstrap as your normal user without sudo; it escalates itself'
     for command in git mktemp sudo; do command -v "$command" >/dev/null || error "Bootstrap requires $command"; done
-    { exec </dev/tty; } 2>/dev/null || error 'Run in an interactive terminal; sudo and AUR review need terminal input'
-    [[ -t 0 && -t 1 ]] || error 'Run in an interactive terminal; sudo and AUR review need terminal input'
+    { exec </dev/tty; } 2>/dev/null || error 'Run in an interactive terminal for sudo authentication'
+    [[ -t 0 && -t 1 ]] || error 'Run in an interactive terminal for sudo authentication'
     parent=/tmp
     [[ ! -d /tmp/opencode ]] || parent=/tmp/opencode
     resources=$(mktemp -d "$parent/eco-linux-download.XXXXXXXX")

@@ -42,10 +42,10 @@ def bootstrap():
             if dirty:
                 raise RuntimeError(f'{plugin_id}: local modifications preserved; review before bootstrap')
         else:
-            subprocess.run(['herdr', 'plugin', 'install', repository, '--ref', revision], check=True, timeout=600)
+            subprocess.run(['herdr', 'plugin', 'install', repository, '--ref', revision, '--yes'], check=True, timeout=600)
             registered = installed().get(plugin_id)
             if not registered or registered['source'].get('resolved_commit') != revision:
-                raise RuntimeError(f'{plugin_id}: installation was declined or did not register the expected revision')
+                raise RuntimeError(f'{plugin_id}: installation did not register the expected revision')
         print(f'PASS: reviewed Herdr plugin {plugin_id} at {revision}')
 
 

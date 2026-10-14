@@ -18,20 +18,22 @@ curl -fsSL https://raw.githubusercontent.com/ecruzolivera/eco-linux/master/insta
 
 Run as your normal user, **without sudo**. The bootstrap downloads the public
 repository's `master` branch to a private temporary checkout, reports its commit,
-and runs the installer with terminal input restored for sudo and AUR review.
+and runs the installer with terminal input restored for sudo authentication.
 It removes only its own temporary checkout afterward. This follows the latest
 published setup, not a frozen release; local changes must be pushed before the
 GitHub command can use them.
 
 There are no installation choices to configure. It installs the full desktop,
 personal applications, dotfiles, runtimes, editor tools and Herdr integrations.
-Official repository packages install without per-package confirmation. Yay's
-housekeeping menus are preset (keep cached builds, print all recipe diffs, no
-editor, keep make dependencies) and diffs print directly instead of opening a
-pager, so installation cannot stall at a menu it never shows. AUR recipe review,
-the recipe/install confirmations and sudo remain interactive and without any
-passwordless grant; the pinned integration recipes are shown together for a
-single confirmation. Network-heavy stages run under timeouts.
+Running the command authorizes the full setup: official/AUR packages, pinned
+integrations, Herdr plugins and runtimes install without confirmation prompts.
+AUR recipes/diffs print without opening an editor or pager, and yay batches
+package installs where dependencies permit. Declared PGP keys are imported
+automatically; checksum and signature verification remain enabled. Conflicts
+are not forcibly accepted, and failures stop the installer with an error.
+Sudo may still request authentication; no passwordless grant is created.
+Network-heavy stages run under timeouts. Only run this installer if you trust
+the shipped manifests and the upstream AUR recipes it executes.
 
 - Changed shipped configuration files are backed up under
   `~/.local/state/eco-linux/config-backups/` before replacement. Unrelated and
@@ -250,8 +252,8 @@ back. No persistent passwordless pacman grant is created, even on failure.
 Neovim/plugin provisioning performs downloads and executes the configured plugin
 code as the user, so review the checkout before installation. No provider login,
 model request or live-session restart is part of bootstrap. Herdr GitHub plugins
-are confirmed interactively and verified after install; declining them does not
-produce false success. Already-reviewed revisions are retained on reruns;
+install automatically at pinned revisions and are verified afterward; missing
+registration or a wrong revision is a failure. Reviewed revisions are retained on reruns;
 unfamiliar installations or local modifications are refused rather than erased.
 
 To retry a failed user-bootstrap stage from a retained local checkout, run as the

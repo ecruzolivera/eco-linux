@@ -15,7 +15,7 @@ fi
 pacman -S --needed --noconfirm "${PACKAGES[@]}"
 install_aur "${AUR_PACKAGES[@]}"
 # Only this compatibility-sensitive pair is pinned. Other apps track current Arch/AUR.
-# The manifest is read from fd 3 so the confirmation/sudo prompts keep the terminal on stdin.
+# Read the manifest on fd 3, leaving stdin available for sudo authentication.
 PENDING_PINS=()
 while read -r name revision version <&3; do
   [[ -n $name && $name != \#* ]] || continue
@@ -30,7 +30,7 @@ if ((${#PENDING_PINS[@]})); then
     build=$(mktemp -d "$parent/eco-aur.XXXXXXXX")
     trap 'rm -rf -- "$build"' EXIT
     chown "$REAL_UID:$REAL_GID" "$build"
-    # Fetch every pinned recipe first, then review them together in one decision.
+    # Fetch and print the pinned recipes before automatically building them.
     for pin in "${PENDING_PINS[@]}"; do
       read -r name revision version <<< "$pin"
       run_user git clone "https://aur.archlinux.org/$name.git" "$build/$name"
@@ -38,9 +38,7 @@ if ((${#PENDING_PINS[@]})); then
       printf '\n───── reviewed integration recipe: %s %s (%s) ─────\n' "$name" "$version" "$revision"
       cat "$build/$name/PKGBUILD"
     done
-    printf '\n%s pinned integration recipe(s) uphold the shipped Herdr/OpenCode patch.\n' "${#PENDING_PINS[@]}"
-    read -r -p 'Build all reviewed integration recipes? [y/N] ' answer
-    [[ $answer == y || $answer == Y ]] || error 'Pinned integration packages declined'
+    info "Installing ${#PENDING_PINS[@]} pinned integration package(s) automatically"
     for pin in "${PENDING_PINS[@]}"; do
       read -r name revision version <<< "$pin"
       (
