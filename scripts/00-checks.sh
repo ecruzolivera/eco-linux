@@ -10,7 +10,7 @@ IFS=: read -r _ _ REAL_UID REAL_GID _ REAL_HOME _ <<< "$account"
 [[ $(stat -c %u "$REAL_HOME") == "$REAL_UID" ]] || error 'Target user must own their home directory'
 USER_CONFIG=$REAL_HOME/.config
 [[ -t 0 && -t 1 ]] || error 'Use an interactive terminal for sudo authentication'
-for command in sudo pacman getent curl tar git awk grep sed cp find mktemp systemctl; do
+for command in sudo visudo pacman getent curl tar git awk grep sed cp find mktemp systemctl; do
   # git is installed in phase 01; it is not a prerequisite on minimal Arch.
   [[ $command != git ]] || continue
   command -v "$command" >/dev/null || error "Missing bootstrap command: $command"
@@ -22,7 +22,8 @@ sudo -l -U "$REAL_USER" >/dev/null 2>&1 || error 'Target user must have ordinary
 if grep -Eq '^\[omarchy\]' /etc/pacman.conf; then
   error 'Disable the Omarchy repository separately before installing; this installer does not migrate existing repositories'
 fi
-[[ ! -e /etc/sudoers.d/99-eco-nopasswd ]] || error 'Legacy eco sudoers grant found; review/remove it manually before continuing'
+[[ ! -e /etc/sudoers.d/99-eco-nopasswd && ! -L /etc/sudoers.d/99-eco-nopasswd ]] || error 'Legacy eco sudoers grant found; review/remove it manually before continuing'
+[[ ! -e /etc/sudoers.d/99-eco-pacman-$REAL_UID && ! -L /etc/sudoers.d/99-eco-pacman-$REAL_UID ]] || error 'Stale temporary pacman rule found; inspect/remove it manually before continuing'
 display_manager=$(readlink /etc/systemd/system/display-manager.service || true)
 [[ -z $display_manager || $display_manager == *sddm.service ]] || error 'Switch the existing display manager manually before selecting SDDM'
 ECO_NETWORK=$(select_network)

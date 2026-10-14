@@ -11,6 +11,7 @@ import sys
 import tempfile
 import termios
 import time
+import tomllib
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -112,7 +113,7 @@ class InstallerTests(unittest.TestCase):
                                             env={**BASE_ENV, 'PATH': f'{bins}:/usr/bin:/bin'}, text=True, capture_output=True)
                     self.assertEqual(result.returncode, code, result.stderr)
                     self.assertFalse((inner / 'unexpected').exists())
-                    self.assertIn('No temporary sudo grants', result.stderr)
+                    self.assertIn('Temporary pacman authorization cleanup attempted', result.stderr)
 
     def test_aur_install_is_noninteractive_without_changing_saved_settings(self):
         result = self.bash(f'''
@@ -126,7 +127,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(result.stdout.splitlines(), [
             'env', 'PAGER=cat', 'GIT_PAGER=cat', 'yay', '-S', '--needed', '--aur', '--noconfirm',
             '--answerclean', 'None', '--answerdiff', 'None', '--answeredit', 'None', '--noremovemake',
-            '--diffmenu=false', '--editmenu=false', '--useask=false', '--pgpfetch', '--batchinstall',
+            '--diffmenu=false', '--editmenu=false', '--useask=false', '--sudoloop=false', '--sudoflags=-n', '--pgpfetch', '--batchinstall',
             'brave-bin', 'worktrunk-bin',
         ])
 
@@ -141,13 +142,14 @@ class InstallerTests(unittest.TestCase):
 set -euo pipefail
 [[ -t 0 && -t 1 ]]
 # Simulate saved settings that enable both review menus.
-diffmenu=true answerdiff=All editmenu=true noconfirm=false
+diffmenu=true answerdiff=All editmenu=true sudoloop=true noconfirm=false
 while (($#)); do
   case $1 in
     --noconfirm) noconfirm=true;;
     --answerdiff) answerdiff=$2; shift;;
     --diffmenu=false) diffmenu=false;;
     --editmenu=false) editmenu=false;;
+    --sudoloop=false) sudoloop=false;;
   esac
   shift
 done
@@ -156,7 +158,7 @@ if $diffmenu && [[ $answerdiff == All ]]; then
   # Bound the simulated wait so regressions fail instead of hanging tests.
   read -r -t 1 answer || exit 87
 fi
-$noconfirm && ! $editmenu || exit 98
+$noconfirm && ! $editmenu && ! $sudoloop || exit 98
 printf 'aur-complete\\n'
 ''')
         yay.chmod(0o755)
@@ -206,6 +208,250 @@ main; exit $?
         ''', input='')
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def pacman_grant_fixture(self, validation_exit=0, authorization_exit=0):
+        directory = self.root / 'sudoers'
+        directory.mkdir(mode=0o700)
+        log = self.root / 'grant-calls'
+        # Only disposable files are real. Root ownership and visudo are mocked;
+        # no live sudo configuration or authentication is ever changed.
+        mocks = f'''
+            REAL_USER=target REAL_UID=1000
+            info() {{ :; }}
+            warn() {{ printf '%s\\n' "$*" >&2; }}
+            error() {{ printf '%s\\n' "$*" >&2; exit 42; }}
+            id() {{ printf '0\\n'; }}
+            stat() {{
+              if [[ $* == '-c %u '* ]]; then printf '0\\n'; else command stat "$@"; fi
+            }}
+            chown() {{ [[ $1 == root:root ]] || return 98; printf 'root-owner\\n' >> "{log}"; }}
+            visudo() {{
+              [[ $1 == -cf && $2 == "{directory}/.eco-pacman-1000-"* ]] || return 98
+              [[ ! -e "{directory}/99-eco-pacman-1000" ]] || return 99
+              [[ $(command stat -c %a "$2") == 440 ]] || return 97
+              grep -Fx 'target ALL=(root) NOPASSWD: /usr/bin/pacman' "$2" >/dev/null || return 96
+              printf 'validated\\n' >> "{log}"
+              return {validation_exit}
+            }}
+            run_user() {{
+              [[ $* == 'sudo -k -n -- /usr/bin/pacman -Qq' ]] || return 98
+              [[ -f "{directory}/99-eco-pacman-1000" ]] || return 99
+              printf 'authorized-without-cache\\n' >> "{log}"
+              return {authorization_exit}
+            }}
+        '''
+        return directory, mocks, log
+
+    def test_pacman_grant_is_validated_scoped_and_removed_idempotently(self):
+        directory, mocks, log = self.pacman_grant_fixture()
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            {mocks}
+            begin_pacman_grant "{directory}"
+            first=$ECO_PACMAN_GRANT_ID
+            begin_pacman_grant "{directory}"
+            [[ $first == "$ECO_PACMAN_GRANT_ID" ]]
+            cat "$ECO_PACMAN_GRANT_FILE"
+            [[ $(command stat -c %a "$ECO_PACMAN_GRANT_FILE") == 440 ]]
+            end_pacman_grant
+            end_pacman_grant
+        ''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'target ALL=(root) NOPASSWD: /usr/bin/pacman')
+        self.assertEqual(log.read_text().splitlines(), ['root-owner', 'validated', 'authorized-without-cache'])
+        self.assertEqual(list(directory.iterdir()), [])
+        # Real syntax checking is read-only and only sees this disposable file;
+        # it never installs a rule or invokes sudo authentication.
+        if shutil.which('visudo', path=BASE_ENV['PATH']):
+            policy = self.root / 'sudoers-syntax'
+            policy.write_text(result.stdout)
+            policy.chmod(0o440)
+            checked = subprocess.run(['visudo', '-cf', str(policy)], env=BASE_ENV, text=True, capture_output=True)
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+
+    def test_pacman_grant_preserves_existing_rule(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        existing = directory / '99-eco-pacman-1000'
+        existing.write_text('existing administrator rule\n')
+        inode = existing.stat().st_ino
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            {mocks}
+            begin_pacman_grant "{directory}"
+        ''')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertEqual(existing.read_text(), 'existing administrator rule\n')
+        self.assertEqual(existing.stat().st_ino, inode)
+        self.assertEqual(list(directory.iterdir()), [existing])
+
+    def test_pacman_grant_preserves_existing_symlink(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        outside = self.root / 'untouched'
+        outside.write_text('preserved\n')
+        existing = directory / '99-eco-pacman-1000'
+        existing.symlink_to(outside)
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            {mocks}
+            begin_pacman_grant "{directory}"
+        ''')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertTrue(existing.is_symlink())
+        self.assertEqual(outside.read_text(), 'preserved\n')
+
+    def test_pacman_grant_changed_rule_is_not_deleted(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            {mocks}
+            begin_pacman_grant "{directory}"
+            chmod 0600 "$ECO_PACMAN_GRANT_FILE"
+            printf 'administrator modification\\n' > "$ECO_PACMAN_GRANT_FILE"
+            end_pacman_grant
+        ''')
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('preserved', result.stderr)
+        self.assertEqual((directory / '99-eco-pacman-1000').read_text(), 'administrator modification\n')
+
+    def test_pacman_grant_changed_permissions_are_preserved(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            {mocks}
+            begin_pacman_grant "{directory}"
+            chmod 0600 "$ECO_PACMAN_GRANT_FILE"
+            end_pacman_grant
+        ''')
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('preserved', result.stderr)
+        self.assertEqual((directory / '99-eco-pacman-1000').stat().st_mode & 0o777, 0o600)
+
+    def test_pacman_grant_state_cannot_be_injected_by_environment(self):
+        existing = self.root / 'unrelated-rule'
+        existing.write_text('unrelated\n')
+        result = self.bash(f'''
+            export ECO_PACMAN_GRANT_FILE="{existing}"
+            export ECO_PACMAN_GRANT_ID="$(stat -c '%d:%i' "{existing}")"
+            export ECO_PACMAN_GRANT_METADATA="$(stat -c '%u:%g:%a' "{existing}")"
+            export ECO_PACMAN_GRANT_CONTENT=unrelated
+            source "{REPO}/lib/installer.sh"
+            end_pacman_grant
+        ''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(existing.read_text(), 'unrelated\n')
+
+    def test_entrypoint_cleans_pacman_grant_on_exit_and_signals(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text(mocks)
+        for failure, code in [('true', 0), ('false', 1), ('kill -INT $$', 130), ('kill -TERM $$', 143), ('kill -HUP $$', 129)]:
+            with self.subTest(failure=failure):
+                (repo / 'scripts/02-yay.sh').write_text(f'begin_pacman_grant "{directory}"\n{failure}\n')
+                (repo / 'scripts/03-packages.sh').write_text(f'''
+begin_pacman_grant "{directory}"
+[[ -f "$ECO_PACMAN_GRANT_FILE" ]]
+end_pacman_grant
+''')
+                (repo / 'scripts/04-after-packages.sh').write_text(f'[[ ! -e "{directory}/99-eco-pacman-1000" ]]\n')
+                result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], env=env, text=True, capture_output=True)
+                self.assertEqual(result.returncode, code, result.stderr)
+                self.assertEqual(list(directory.iterdir()), [])
+
+    def test_invalid_pacman_rule_never_activates_and_staging_is_cleaned(self):
+        directory, mocks, _ = self.pacman_grant_fixture(validation_exit=1)
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text(mocks)
+        (repo / 'scripts/02-yay.sh').write_text(f'begin_pacman_grant "{directory}"\n')
+        result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], env=env, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertIn('failed validation', result.stderr)
+        self.assertEqual(list(directory.iterdir()), [])
+
+    def test_ineffective_pacman_rule_fails_without_password_prompt_and_is_removed(self):
+        directory, mocks, _ = self.pacman_grant_fixture(authorization_exit=1)
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text(mocks)
+        (repo / 'scripts/02-yay.sh').write_text(f'begin_pacman_grant "{directory}"\n')
+        result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], env=env, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertIn('not effective', result.stderr)
+        self.assertEqual(list(directory.iterdir()), [])
+
+    def test_pacman_rule_activation_collision_preserves_new_existing_file(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text(mocks + f'''
+visudo() {{ printf 'concurrent administrator rule\\n' > "{directory}/99-eco-pacman-1000"; }}
+''')
+        (repo / 'scripts/02-yay.sh').write_text(f'begin_pacman_grant "{directory}"\n')
+        result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], env=env, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 42, result.stderr)
+        existing = directory / '99-eco-pacman-1000'
+        self.assertEqual(existing.read_text(), 'concurrent administrator rule\n')
+        self.assertEqual(list(directory.iterdir()), [existing])
+
+    def test_pacman_rule_activation_never_follows_concurrent_directory_symlink(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        outside = self.root / 'outside-directory'
+        outside.mkdir()
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text(mocks + f'''
+visudo() {{ ln -s "{outside}" "{directory}/99-eco-pacman-1000"; }}
+''')
+        (repo / 'scripts/02-yay.sh').write_text(f'begin_pacman_grant "{directory}"\n')
+        result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], env=env, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertTrue((directory / '99-eco-pacman-1000').is_symlink())
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_pacman_rule_cleanup_failure_is_reported_and_preserves_changed_file(self):
+        directory, mocks, _ = self.pacman_grant_fixture()
+        repo, env = self.fixture()
+        (repo / 'scripts/00-checks.sh').write_text(mocks)
+        (repo / 'scripts/02-yay.sh').write_text(f'''
+begin_pacman_grant "{directory}"
+chmod 0600 "$ECO_PACMAN_GRANT_FILE"
+printf 'administrator change\\n' > "$ECO_PACMAN_GRANT_FILE"
+''')
+        result = subprocess.run(['/bin/bash', str(repo / 'install.sh')], env=env, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('cleanup failed', result.stderr)
+        self.assertEqual((directory / '99-eco-pacman-1000').read_text(), 'administrator change\n')
+
+    def test_pgadmin_binary_provider_is_selected_and_not_omitted(self):
+        spec = importlib.util.spec_from_file_location('eco_package_coverage', REPO / 'tests/package-coverage.py')
+        coverage = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(coverage)
+        personal_aur = coverage.manifest('personal.aur')
+        self.assertTrue({'pgadmin4-desktop-bin', 'pgadmin4-server-bin'} <= personal_aur)
+        self.assertNotIn('pgadmin4-server', coverage.selected('personal'))
+        self.assertNotIn('pgadmin4-server-bin', coverage.selected('core'))
+        groups = tomllib.loads((REPO / 'packages/omissions.toml').read_text())['groups']
+        self.assertFalse(any('pgadmin4-server-bin' in group['packages'] for group in groups.values()))
+        # Both explicit providers must reach the same AUR transaction, not just
+        # appear in metadata while yay chooses the broken source dependency.
+        calls = self.root / 'aur-targets'
+        result = self.bash(f'''
+            source "{REPO}/lib/installer.sh"
+            INSTALLER_DIR="{REPO}" ECO_APPS=personal
+            phase() {{ :; }}
+            error() {{ printf '%s\\n' "$*" >&2; exit 98; }}
+            pacman() {{
+              case $1 in
+                -S) :;;
+                -Q) awk -v name="$2" '$1 == name {{print $1 " " $3}}' "$INSTALLER_DIR/packages/integrations.lock";;
+                *) return 98;;
+              esac
+            }}
+            install_aur() {{ printf '%s\\n' "$@" > "{calls}"; }}
+            run_user() {{ return 99; }}
+            begin_pacman_grant() {{ :; }}; end_pacman_grant() {{ :; }}
+            source "{REPO}/scripts/03-packages.sh"
+        ''', input='')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        targets = calls.read_text().splitlines()
+        self.assertEqual(targets.count('pgadmin4-server-bin'), 1)
+        self.assertEqual(targets.count('pgadmin4-desktop-bin'), 1)
+
     def test_missing_yay_branch_scopes_cwd_and_cleanup(self):
         log = self.root / 'build-path'
         result = self.bash(f'''
@@ -226,6 +472,7 @@ main; exit $?
             }}
             cd "{self.home}"
             before=$PWD
+            begin_pacman_grant() {{ [[ $1 == /etc/sudoers.d ]]; }}
             source "{REPO}/scripts/02-yay.sh"
             [[ $PWD == "$before" ]]
         ''', input='')
@@ -393,6 +640,7 @@ main; exit $?
               esac
             }}
             cd "{self.root}"
+            begin_pacman_grant() {{ :; }}; end_pacman_grant() {{ :; }}
             source "{REPO}/scripts/03-packages.sh"
             printf 'complete\\n' >> "{marker}/done"
         ''', input='')
@@ -441,6 +689,7 @@ main; exit $?
               esac
             }}
             cd "{self.root}"
+            begin_pacman_grant() {{ :; }}; end_pacman_grant() {{ :; }}
             source "{REPO}/scripts/03-packages.sh"
             printf 'complete\\n' >> "{marker}/done"
         ''', input='')
@@ -507,8 +756,12 @@ main; exit $?
         (bins / 'id').write_text('#!/bin/sh\nif [ "${ECO_TEST_ELEVATED:-0}" = 1 ]; then printf "0\\n"; else printf "1000\\n"; fi\n')
         (bins / 'sudo').write_text('''#!/bin/bash
 set -euo pipefail
-[[ -t 0 ]]
 printf 'sudo:%s\n' "$*" >> "$ECO_TEST_LOG"
+case "$*" in
+  -v) [[ -t 0 ]]; exit 0;;
+  '-n -v') exit 0;;
+esac
+[[ -t 0 ]]
 export ECO_TEST_ELEVATED=1
 unset SSH_CONNECTION SSH_CLIENT SSH_TTY
 exec "$@"
@@ -584,6 +837,8 @@ esac
         code, output = self.run_piped_bootstrap(env, cwd=repo)
         self.assertEqual(code, 0, output)
         calls = self.assert_bootstrap_download_cleaned()
+        self.assertFalse(any(line in ['sudo:-v', 'sudo:-n -v'] for line in calls))
+        self.assertEqual(sum(line.startswith('sudo:env ') for line in calls), 1)
         self.assertIn('confirmed:approve:personal:replace:enable', calls)
         self.assertIn('complete', calls)
         self.assertIn('Installing eco-linux revision', output)
@@ -627,7 +882,7 @@ esac
         self.assertEqual(code, 0, output)
         self.assertFalse((self.root / 'calls').exists())
 
-    def test_no_database_only_upgrades_or_sudoers_writes(self):
+    def test_no_partial_upgrades_or_unscoped_sudo_authorization(self):
         scripts = '\n'.join(path.read_text() for path in (REPO / 'scripts').glob('*.sh'))
         self.assertNotRegex(scripts, r'pacman -Sy(?:\s|$)')
         self.assertIn('pacman -Syu --needed --noconfirm', scripts)
@@ -642,6 +897,10 @@ esac
         # No installer-authored approval prompt may return in any module.
         shell_sources = scripts + (REPO / 'install.sh').read_text() + '\n'.join(
             path.read_text() for path in (REPO / 'lib').glob('*.sh'))
+        self.assertNotIn('sudo -v', shell_sources)
+        self.assertIn('ALL=(root) NOPASSWD: /usr/bin/pacman', shell_sources)
+        self.assertNotRegex(shell_sources, r'NOPASSWD:\s*(?:ALL|/bin/|/usr/bin/(?:bash|env|sh|sudo))')
+        self.assertIn('--sudoloop=false', (REPO / 'lib/installer.sh').read_text())
         self.assertNotRegex(shell_sources, r'\bread\b[^\n]*\s-[^\s]*p(?:\s|$)')
         # AUR dependency installs and yay housekeeping must never wait on a menu or pager.
         self.assertNotRegex(scripts, r'makepkg --syncdeps --cleanbuild(?!\s+--noconfirm)')

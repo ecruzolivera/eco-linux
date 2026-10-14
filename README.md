@@ -32,7 +32,16 @@ ignores `--noconfirm`. Bootstrap and pinned recipes still print, and yay batches
 package installs where dependencies permit. Declared PGP keys are imported
 automatically; checksum and signature verification remain enabled. Conflicts
 are not forcibly accepted, and failures stop the installer with an error.
-Sudo may still request authentication; no passwordless grant is created.
+Sudo authenticates at startup. During package setup, a root-owned temporary rule
+allows your user to run **only `/usr/bin/pacman` as root without a password**, so
+AUR dependency/install transactions don't stop for authentication. The rule is
+validated with `visudo` before activation, checked using noninteractive sudo
+without cached credentials, and removed after the package stage or
+on failure, Ctrl-C or termination. Existing rules are never overwritten; sudo
+is not disabled globally. Pacman itself is a powerful privileged command—this
+authorization remains active until the package stage finishes.
+SIGKILL or power loss cannot run cleanup traps: after such an interruption,
+inspect `/etc/sudoers.d/99-eco-pacman-<UID>` and remove the stale rule before retrying.
 Network-heavy stages run under timeouts. Only run this installer if you trust
 the shipped manifests and the upstream AUR recipes it executes.
 
@@ -68,6 +77,10 @@ The installer performs a full `pacman -Syu`; usual package hooks can update
 kernel/initramfs/boot files. It does not itself configure partitions, encryption,
 Limine, Snapper or boot entries. Limine/Snapper packages are deliberately outside
 the portable profile; never register an ext4 home as Btrfs.
+
+The personal manifest explicitly selects `pgadmin4-server-bin` alongside
+`pgadmin4-desktop-bin`, so dependency resolution uses the binary server provider
+instead of the source recipe whose checked download URL returned HTTP 404.
 
 ## What it installs
 
@@ -248,7 +261,8 @@ reviewed Herdr/OpenCode versions before installing plugins or applying the
 checksum-guarded patch. Required failures stop installation and mark the report
 at `~/.local/state/eco-linux/user-setup.txt` incomplete. A failed package/system
 stage is identified on stderr; already completed package changes are not rolled
-back. No persistent passwordless pacman grant is created, even on failure.
+back. Temporary pacman authorization is removed on normal exits and caught
+signals; cleanup failures are reported rather than hidden.
 
 Neovim/plugin provisioning performs downloads and executes the configured plugin
 code as the user, so review the checkout before installation. No provider login,

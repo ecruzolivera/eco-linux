@@ -1,4 +1,5 @@
 phase 'AUR helper'
+begin_pacman_grant /etc/sudoers.d
 if command -v yay >/dev/null; then
   info 'yay already installed'
   return

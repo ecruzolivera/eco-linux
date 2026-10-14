@@ -39,6 +39,7 @@ main() {
     trap 'rm -rf -- "$resources"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
+    trap 'exit 129' HUP
     GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch master https://github.com/ecruzolivera/eco-linux.git "$resources/repo"
     [[ -f "$resources/repo/install.sh" && -f "$resources/repo/scripts/00-checks.sh" && -f "$resources/repo/lib/installer.sh" ]] || error 'Downloaded repository is not an eco-linux installer'
     revision=$(git -C "$resources/repo" rev-parse HEAD)
@@ -62,10 +63,23 @@ main() {
 
   CURRENT_MODULE=preflight
   INSTALL_COMPLETE=0
-  trap 'code=$?; if (( ! INSTALL_COMPLETE )); then warn "Installation incomplete in $CURRENT_MODULE (exit $code). No temporary sudo grants were created."; fi' EXIT
+  trap '
+    code=$?
+    trap - EXIT
+    trap "" INT TERM HUP
+    if ! end_pacman_grant; then
+      warn "Temporary pacman authorization cleanup failed; inspect sudoers before continuing."
+      ((code)) || code=1
+    fi
+    if (( ! INSTALL_COMPLETE )); then
+      warn "Installation incomplete in $CURRENT_MODULE (exit $code). Temporary pacman authorization cleanup attempted."
+    fi
+    exit "$code"
+  ' EXIT
   trap 'warn "Failure in $CURRENT_MODULE at line $LINENO"' ERR
   trap 'exit 130' INT
   trap 'exit 143' TERM
+  trap 'exit 129' HUP
   for group in SYS_CONFIG XDG_CONFIG HOME_ROOT_CONFIG LOCAL_BIN LOCAL_SHARE; do
     case $group in
       SYS_CONFIG) directory=system-config;; XDG_CONFIG) directory=xdg-config;;

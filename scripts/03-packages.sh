@@ -12,6 +12,7 @@ if [[ $ECO_APPS == personal ]]; then
   AUR_PACKAGES+=("${PERSONAL[@]}")
 fi
 # Official repositories are trusted upstream packages, so no per-package confirmation.
+begin_pacman_grant /etc/sudoers.d
 pacman -S --needed --noconfirm "${PACKAGES[@]}"
 install_aur "${AUR_PACKAGES[@]}"
 # Only this compatibility-sensitive pair is pinned. Other apps track current Arch/AUR.
@@ -52,3 +53,4 @@ if ((${#PENDING_PINS[@]})); then
     done
   )
 fi
+end_pacman_grant

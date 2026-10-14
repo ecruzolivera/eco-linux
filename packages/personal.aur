@@ -5,6 +5,8 @@ megasync-bin
 opencode-desktop-bin
 openshot-bin
 pgadmin4-desktop-bin
+# Explicitly select the binary server provider instead of the broken source build.
+pgadmin4-server-bin
 postman-bin
 python-pywalfox
 riskie-bin
