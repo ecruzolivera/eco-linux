@@ -1,0 +1,56 @@
+engine = "parakeet"
+state_file = "auto"
+
+[hotkey]
+enabled = false
+
+[audio]
+device = "default"
+max_duration_secs = 60
+
+[parakeet]
+model = "parakeet-ultra-Q8_0.gguf"
+on_demand_loading = true
+streaming = false
+
+[output]
+mode = "type"
+driver_order = ["wtype", "clipboard"]
+fallback_to_clipboard = true
+auto_submit = false
+shift_enter_newlines = true
+
+[output.notification]
+on_recording_start = false
+on_recording_stop = false
+on_transcription = false
+
+[text]
+smart_auto_submit = false
+
+[osd]
+frontend = "quickshell"
+style = "minimal-pill"
+palette = "package"
+layout = "pill"
+position = "bottom-center"
+top_margin = 0.74
+
+[osd.frame]
+background = "background"
+border = "aura"
+glow = false
+halo = false
+
+[[osd.visual.layers]]
+type = "dots"
+source = "peak"
+color = "accent"
+secondary_color = "foreground"
+order = 10
+x = 0.0
+y = 0.0
+width = 1.0
+height = 1.0
+gain = 1.0
+opacity = 1.0

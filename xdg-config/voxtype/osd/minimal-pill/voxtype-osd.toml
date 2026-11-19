@@ -1,0 +1,18 @@
+# Minimal pill: small black rounded rectangle with five centre voice bars.
+name = "minimal-pill"
+version = "1.0.0"
+description = "Small black rounded rectangle with five centre voice bars."
+palette = "package"
+layout = "custom"
+qml_entry = "MinimalPill.qml"
+
+[colors]
+accent = "#FFFFFF"
+background = "rgba(0, 0, 0, 0.92)"
+foreground = "#FFFFFF"
+
+[frame]
+background = "none"
+border = "none"
+glow = false
+halo = false

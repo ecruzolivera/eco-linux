@@ -70,6 +70,8 @@ def deploy():
         if exists and not target.is_symlink() and content is not None and target.read_bytes() == content:
             target.chmod(permissions)
             continue
+        if exists and target.is_symlink() and content is None and os.readlink(target) == os.readlink(source):
+            continue
         if exists:
             if backup is None:
                 backup = Path(tempfile.mkdtemp(prefix='replace-', dir=home / '.local/state/eco-linux/config-backups'))

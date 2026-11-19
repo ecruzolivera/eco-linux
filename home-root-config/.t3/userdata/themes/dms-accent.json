@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "dms-accent",
+  "name": "Default with DMS accent",
+  "appearance": "dark",
+  "colors": {
+    "surfaceRaised": "#141218",
+    "text": "#ffffff",
+    "textMuted": "#cac4cf",
+    "mutedForeground": "#cac4cf",
+    "secondaryLabel": "#cac4cf",
+    "iconMuted": "#cac4cf",
+    "placeholder": "#bcb6c5",
+    "input": "#948f99",
+    "border": "#625b71",
+    "accent": "#d0bcff",
+    "accentForeground": "#381e72",
+    "focus": "#d0bcff",
+    "messageAction": "#d0bcff",
+    "messageActionForeground": "#381e72",
+    "messageActionHover": "#bca5f2",
+    "update": "#d0bcff",
+    "updateForeground": "#d0bcff",
+    "updateSurface": "#241e35",
+    "terminalBackground": "#141218",
+    "terminalForeground": "#e6e0e9",
+    "terminalCursor": "#d0bcff",
+    "terminalSelection": "#ccc2dc"
+  },
+  "variants": {
+    "light": {
+      "accent": "#6750a4",
+      "accentForeground": "#ffffff",
+      "focus": "#6750a4",
+      "messageAction": "#6750a4",
+      "messageActionForeground": "#ffffff",
+      "messageActionHover": "#4f378b",
+      "update": "#6750a4",
+      "updateForeground": "#6750a4",
+      "updateSurface": "#eaddff"
+    }
+  }
+}

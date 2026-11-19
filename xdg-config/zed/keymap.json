@@ -1,0 +1,132 @@
+[
+  {
+    "context": "Workspace",
+    "bindings": {
+      "alt-t": "terminal_panel::Toggle"
+    }
+  },
+  {
+    "context": "Editor && vim_mode == normal && !menu",
+    "bindings": {
+      "ctrl-s": "workspace::Save",
+      "ctrl-p": "file_finder::Toggle",
+      "tab": [
+        "workspace::SendKeystrokes",
+        "> >"
+      ],
+      "shift-tab": [
+        "workspace::SendKeystrokes",
+        "< <"
+      ],
+      "ctrl-i": "pane::GoForward",
+      ";": "vim::CountCommand",
+      "space w": "workspace::Save",
+      "space q": "pane::CloseActiveItem",
+      "space shift-q": "zed::Quit",
+      "space n": "workspace::NewFile",
+      "space c": "pane::CloseActiveItem",
+      "space b v": "pane::SplitVertical",
+      "space b h": "pane::SplitHorizontal",
+      "|": "pane::SplitVertical",
+      "\\": "pane::SplitHorizontal",
+      "] b": "pane::ActivateNextItem",
+      "[ b": "pane::ActivatePreviousItem",
+      "space b c": "pane::CloseOtherItems",
+      "space b shift-c": "pane::CloseAllItems",
+      "space b l": "pane::CloseItemsToTheLeft",
+      "space b r": "pane::CloseItemsToTheRight",
+      "space b p": "pane::AlternateFile",
+      "space e": "workspace::ToggleLeftDock",
+      "space o": "project_panel::ToggleFocus",
+      "space f f": "file_finder::Toggle",
+      "space f b": "tab_switcher::Toggle",
+      "space f w": "project_search::ToggleFocus",
+      "space f shift-c": "command_palette::Toggle",
+      "space f t": "theme_selector::Toggle",
+      "space f k": "zed::OpenKeymap",
+      "space l r": "editor::Rename",
+      "space l a": "editor::ToggleCodeActions",
+      "space l f": "editor::Format",
+      "space l shift-d": "diagnostics::Deploy",
+      "space l d": "editor::Hover",
+      "space l s": "outline::Toggle",
+      "g d": "editor::GoToDefinition",
+      "g shift-d": "editor::GoToDeclaration",
+      "g shift-i": "editor::GoToImplementation",
+      "g k": "editor::Hover",
+      "g r": "editor::FindAllReferences",
+      "g y": "editor::GoToTypeDefinition",
+      "] d": "editor::GoToDiagnostic",
+      "[ d": "editor::GoToPreviousDiagnostic",
+      "space /": "editor::ToggleComments",
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+      "ctrl-shift-h": "vim::ResizePaneLeft",
+      "ctrl-shift-l": "vim::ResizePaneRight",
+      "ctrl-shift-k": "vim::ResizePaneDown",
+      "ctrl-shift-j": "vim::ResizePaneUp"
+    }
+  },
+  {
+    "context": "Editor && (vim_mode == visual || vim_mode == visual_line || vim_mode == visual_block) && !menu",
+    "bindings": {
+      "tab": "vim::Indent",
+      "shift-tab": "vim::Outdent",
+      "space /": "editor::ToggleComments",
+      "ctrl-s": "workspace::Save"
+    }
+  },
+  {
+    "context": "MarkdownPreview && !menu",
+    "bindings": {
+      "j": "markdown::ScrollDown",
+      "k": "markdown::ScrollUp",
+      "ctrl-d": "markdown::ScrollPageDown",
+      "ctrl-u": "markdown::ScrollPageUp",
+      "ctrl-e": "markdown::ScrollDown",
+      "ctrl-y": "markdown::ScrollUp",
+      "g g": "markdown::ScrollToTop",
+      "shift-g": "markdown::ScrollToBottom",
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight"
+    }
+  },
+  {
+    "context": "Workspace",
+    "bindings": {
+      "ctrl-alt-n": "workspace::NewWindow",
+      "ctrl-alt-w": "workspace::CloseWindow",
+      "ctrl-alt-m": "diagnostics::Deploy"
+    }
+  },
+  {
+    "context": "Editor && mode == full && !menu",
+    "bindings": {
+      "ctrl-alt-i": "editor::Format"
+    }
+  },
+  {
+    "context": "Editor && extension == md && !menu",
+    "bindings": {
+      "ctrl-alt-v": "markdown::OpenPreview"
+    }
+  },
+  {
+    "context": "MarkdownPreview && !menu",
+    "bindings": {
+      "ctrl-alt-v": "markdown::CloseAndReturnToEditor"
+    }
+  },
+  {
+    "context": "Terminal",
+    "bindings": {
+      "ctrl-alt-c": "terminal::Copy",
+      "ctrl-alt-v": "terminal::Paste",
+      "ctrl-alt-w": "pane::CloseActiveItem"
+    }
+  }
+]

@@ -39,6 +39,7 @@ unrar
 virt-manager
 wev
 wget
+wtype
 xarchiver
 xdotool
 xournalpp
@@ -46,3 +47,4 @@ yq
 zathura-cb
 zathura-djvu
 zathura-ps
+zed

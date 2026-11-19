@@ -5,4 +5,7 @@ binds {
 
     Mod+D             hotkey-overlay-title="Open Browser: Chromium" { spawn "chromium"; }
     Mod+Shift+D       hotkey-overlay-title="Open Browser: Firefox Dev" { spawn "firefox-developer-edition"; }
+
+    Super+A repeat=false hotkey-overlay-title="Toggle Voice Dictation" { spawn "voxtype" "record" "toggle"; }
+    Super+Z repeat=false hotkey-overlay-title="Abrir WhatsApp: ZapFast" { spawn "zapfast"; }
 }

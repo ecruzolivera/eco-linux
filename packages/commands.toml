@@ -86,3 +86,5 @@ zsh = "zsh"
 [personal_commands]
 megasync = "megasync-bin"
 slack = "slack-desktop"
+voxtype = "voxtype-bin"
+zapfast = "zapfast-bin"
